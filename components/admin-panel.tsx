@@ -1550,56 +1550,29 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
           </div>
 
           <div>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Categories (one or more)
-              </p>
-              <span
-                className={`rounded-full px-2 py-0.5 font-mono text-[0.65rem] font-bold ${
-                  s.categoryIds.length ? "bg-primary/10 text-primary" : "bg-red-50 text-red-500"
-                }`}
-              >
-                {s.categoryIds.length} selected
-              </span>
-            </div>
-            <p className="-mt-1 mb-2 text-[0.7rem] text-gray-400">
-              Pick one category to show only those products — or pick several to combine them in this section.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {cats.map((c) => {
-                const on = s.categoryIds.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    title={on ? "Click to remove" : "Click to select"}
-                    onClick={() =>
-                      update(s.id, {
-                        categoryIds: on ? s.categoryIds.filter((x) => x !== c.id) : [...s.categoryIds, c.id],
-                      })
-                    }
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      on
-                        ? "border-primary bg-primary text-white shadow-sm"
-                        : "border-gray-200 bg-white text-gray-500 hover:border-primary/40 hover:text-gray-700"
-                    }`}
-                  >
-                    <span
-                      className={`grid h-3.5 w-3.5 place-items-center rounded border text-[0.6rem] leading-none ${
-                        on ? "border-white/40 bg-white/20" : "border-gray-300 bg-white"
-                      }`}
-                    >
-                      {on ? "✓" : ""}
-                    </span>
-                    {c.name}
+            <Select
+              label="Categories (one or more)"
+              placeholder="Search and select categories…"
+              description="Pick one category to show only those products — or pick several to combine them in this section."
+              selectionMode="multiple"
+              selectedKeys={s.categoryIds}
+              onSelectionChange={(keys) => update(s.id, { categoryIds: Array.from(keys as Set<string>) })}
+              items={cats}
+              isInvalid={!s.categoryIds.length}
+              errorMessage="Select at least one category"
+              className="w-full"
+            >
+              {(c) => (
+                <SelectItem key={c.id} textValue={c.name}>
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <span>{c.name}</span>
                     {typeof c._count?.products === "number" && (
-                      <span className="font-mono opacity-80">({c._count.products})</span>
+                      <span className="font-mono text-xs opacity-70">({c._count.products})</span>
                     )}
-                  </button>
-                );
-              })}
-              {cats.length === 0 && <span className="text-xs text-gray-400">No categories found.</span>}
-            </div>
+                  </div>
+                </SelectItem>
+              )}
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
