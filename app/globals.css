@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "../heroui.plugin.mjs";
+@source "../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -94,8 +95,9 @@ body {
 }
 
 @layer base {
-/* Universal Button System & HeroUI Styling Overrides */
-button, [data-slot="button"] {
+/* Universal Button System for legacy app buttons (HeroUI components excluded) */
+button:not(:is([data-slot] *)),
+button[data-slot="button"]:not(:is([data-slot] *)) {
   font-family: var(--store-font) !important;
   font-weight: 700 !important;
   font-size: 0.92rem;
@@ -115,35 +117,35 @@ button, [data-slot="button"] {
 }
 
 /* Primary Button Styling */
-button[data-color="primary"],
-button[color="primary"],
+button[data-color="primary"]:not(:is([data-slot] *)),
+button[color="primary"]:not(:is([data-slot] *)),
 .btn-primary,
-button[type="submit"] {
+button[type="submit"]:not(:is([data-slot] *)) {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
   color: #ffffff !important;
   border: 0 !important;
   box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
 }
 
-button[data-color="primary"]:hover,
-button[color="primary"]:hover,
+button[data-color="primary"]:not(:is([data-slot] *)):hover,
+button[color="primary"]:not(:is([data-slot] *)):hover,
 .btn-primary:hover,
-button[type="submit"]:hover {
+button[type="submit"]:not(:is([data-slot] *)):hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(79, 70, 229, 0.45) !important;
   opacity: 0.96;
 }
 
-button[data-color="primary"]:active,
-button[color="primary"]:active,
+button[data-color="primary"]:not(:is([data-slot] *)):active,
+button[color="primary"]:not(:is([data-slot] *)):active,
 .btn-primary:active,
-button[type="submit"]:active {
+button[type="submit"]:not(:is([data-slot] *)):active {
   transform: translateY(0);
 }
 
 /* Secondary / Flat Button Styling */
-button[data-variant="flat"],
-button[variant="flat"],
+button[data-variant="flat"]:not(:is([data-slot] *)),
+button[variant="flat"]:not(:is([data-slot] *)),
 .btn-flat {
   background: var(--surface-alt) !important;
   color: var(--ink) !important;
@@ -151,8 +153,8 @@ button[variant="flat"],
   box-shadow: var(--shadow-sm);
 }
 
-button[data-variant="flat"]:hover,
-button[variant="flat"]:hover,
+button[data-variant="flat"]:not(:is([data-slot] *)):hover,
+button[variant="flat"]:not(:is([data-slot] *)):hover,
 .btn-flat:hover {
   background: #e2e8f0 !important;
   border-color: #cbd5e1 !important;
@@ -161,16 +163,16 @@ button[variant="flat"]:hover,
 }
 
 /* Danger Button Styling */
-button[data-color="danger"],
-button[color="danger"],
+button[data-color="danger"]:not(:is([data-slot] *)),
+button[color="danger"]:not(:is([data-slot] *)),
 .btn-danger {
   background: #fef2f2 !important;
   color: #ef4444 !important;
   border: 1px solid #fecaca !important;
 }
 
-button[data-color="danger"]:hover,
-button[color="danger"]:hover,
+button[data-color="danger"]:not(:is([data-slot] *)):hover,
+button[color="danger"]:not(:is([data-slot] *)):hover,
 .btn-danger:hover {
   background: #ef4444 !important;
   color: #ffffff !important;
