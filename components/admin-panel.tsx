@@ -11,10 +11,31 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 type Config = {
   storeName: string;
   featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean };
-  paymentConfig: { bkash: { enabled: boolean }; nagad: { enabled: boolean }; sslcommerz: { enabled: boolean } };
+  paymentConfig?: {
+    bkash?: { enabled: boolean; mode?: string; callbackUrl?: string; appKey?: string; appSecret?: string; username?: string; password?: string };
+    nagad?: { enabled: boolean; mode?: string; callbackUrl?: string; merchantId?: string; merchantNumber?: string; privateKey?: string };
+    sslcommerz?: { enabled: boolean; mode?: string; callbackUrl?: string; sandbox?: boolean; storeId?: string; storePassword?: string };
+  };
+  emailConfig?: { host: string; port: number; user: string; pass: string; fromEmail: string };
+  courierConfig?: {
+    steadfast?: { enabled: boolean; apiKey?: string; secretKey?: string };
+    pathao?: { enabled: boolean; clientId?: string; clientSecret?: string; clientEmail?: string };
+    redx?: { enabled: boolean; apiKey?: string };
+  };
+  aiConfig?: { provider: string; apiKey: string; systemPromptOverride?: string };
   emailConfigured: boolean;
   courierConfigured: boolean;
   storageConfigured: boolean;
+  storageConfig?: {
+    provider: "local" | "hostinger-object-storage";
+    folderPath?: string;
+    publicBaseUrl?: string;
+    endpoint?: string;
+    region?: string;
+    bucket?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+  };
   enableIpLimit: boolean;
   cooldownMinutes: number;
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
@@ -296,9 +317,9 @@ export function AdminPanel() {
           {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
           {section === "features" && <FeatureSettings config={config} save={save} saving={saving} />}
-          {section === "payments" && <PaymentSettings save={save} saving={saving} />}
-          {section === "delivery" && <DeliverySettings save={save} saving={saving} />}
-          {section === "storage" && <StorageSettings save={save} saving={saving} configured={config.storageConfigured} />}
+{section === "payments" && <PaymentSettings config={config} save={save} saving={saving} />}
+        {section === "delivery" && <DeliverySettings config={config} save={save} saving={saving} />}
+          {section === "storage" && <StorageSettings save={save} saving={saving} configured={config.storageConfigured} storage={config.storageConfig} />}
         </div>
       </div>
     </div>
@@ -1620,10 +1641,10 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
 }
 
 /* ==================== PAYMENTS ==================== */
-function PaymentSettings({ save, saving }: { save: (payload: object) => Promise<void>; saving: boolean }) {
-  const [bkash, setBkash] = useState(false);
-  const [nagad, setNagad] = useState(false);
-  const [ssl, setSsl] = useState(false);
+function PaymentSettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
+  const [bkash, setBkash] = useState(Boolean(config.paymentConfig?.bkash?.enabled));
+  const [nagad, setNagad] = useState(Boolean(config.paymentConfig?.nagad?.enabled));
+  const [ssl, setSsl] = useState(Boolean(config.paymentConfig?.sslcommerz?.enabled));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1656,36 +1677,36 @@ function PaymentSettings({ save, saving }: { save: (payload: object) => Promise<
     <form onSubmit={submit} className="space-y-6 max-w-3xl">
       <GatewayCard title="bKash Merchant Payment" desc="Accept direct bKash digital payment." enabled={bkash} setEnabled={setBkash}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Mode" name="bkashMode" defaultSelectedKeys={["sandbox"]}>
+          <Select label="Mode" name="bkashMode" defaultSelectedKeys={[config.paymentConfig?.bkash?.mode === "live" ? "live" : "sandbox"]}>
             <SelectItem key="sandbox">Sandbox (Test)</SelectItem>
             <SelectItem key="live">Live (Production)</SelectItem>
           </Select>
-          <Input className="sm:col-span-2" name="bkashCallback" label="Callback URL" placeholder="https://store.com/api/payment/bkash/callback" />
-          <Input name="bkashKey" label="App Key" />
-          <Input name="bkashSecret" label="App Secret" type="password" />
+          <Input className="sm:col-span-2" name="bkashCallback" label="Callback URL" placeholder="https://store.com/api/payment/bkash/callback" defaultValue={config.paymentConfig?.bkash?.callbackUrl ?? ""} />
+          <Input name="bkashKey" label="App Key" defaultValue={config.paymentConfig?.bkash?.appKey ?? ""} />
+          <Input name="bkashSecret" label="App Secret" type="password" defaultValue={config.paymentConfig?.bkash?.appSecret ?? ""} />
         </div>
       </GatewayCard>
 
       <GatewayCard title="Nagad Merchant Payment" desc="Accept Nagad mobile banking payments." enabled={nagad} setEnabled={setNagad}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Mode" name="nagadMode" defaultSelectedKeys={["sandbox"]}>
+          <Select label="Mode" name="nagadMode" defaultSelectedKeys={[config.paymentConfig?.nagad?.mode === "live" ? "live" : "sandbox"]}>
             <SelectItem key="sandbox">Sandbox (Test)</SelectItem>
             <SelectItem key="live">Live (Production)</SelectItem>
           </Select>
-          <Input className="sm:col-span-2" name="nagadCallback" label="Callback URL" />
-          <Input name="nagadMerchant" label="Merchant ID" />
-          <Input name="nagadNumber" label="Merchant Number" />
+          <Input className="sm:col-span-2" name="nagadCallback" label="Callback URL" defaultValue={config.paymentConfig?.nagad?.callbackUrl ?? ""} />
+          <Input name="nagadMerchant" label="Merchant ID" defaultValue={config.paymentConfig?.nagad?.merchantId ?? ""} />
+          <Input name="nagadNumber" label="Merchant Number" defaultValue={config.paymentConfig?.nagad?.merchantNumber ?? ""} />
         </div>
       </GatewayCard>
 
       <GatewayCard title="SSLCommerz Gateway" desc="Accept Visa/Mastercard, Amex, and internet banking." enabled={ssl} setEnabled={setSsl}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="Mode" name="sslMode" defaultSelectedKeys={["sandbox"]}>
+          <Select label="Mode" name="sslMode" defaultSelectedKeys={[config.paymentConfig?.sslcommerz?.mode === "live" ? "live" : "sandbox"]}>
             <SelectItem key="sandbox">Sandbox (Test)</SelectItem>
             <SelectItem key="live">Live (Production)</SelectItem>
           </Select>
-          <Input name="sslStore" label="Store ID" />
-          <Input name="sslPassword" type="password" label="Store Password" />
+          <Input name="sslStore" label="Store ID" defaultValue={config.paymentConfig?.sslcommerz?.storeId ?? ""} />
+          <Input name="sslPassword" type="password" label="Store Password" defaultValue={config.paymentConfig?.sslcommerz?.storePassword ?? ""} />
         </div>
       </GatewayCard>
 
@@ -1697,10 +1718,10 @@ function PaymentSettings({ save, saving }: { save: (payload: object) => Promise<
 }
 
 /* ==================== DELIVERY ==================== */
-function DeliverySettings({ save, saving }: { save: (payload: object) => Promise<void>; saving: boolean }) {
-  const [steadfast, setSteadfast] = useState(false);
-  const [pathao, setPathao] = useState(false);
-  const [redx, setRedx] = useState(false);
+function DeliverySettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
+  const [steadfast, setSteadfast] = useState(Boolean(config.courierConfig?.steadfast?.enabled));
+  const [pathao, setPathao] = useState(Boolean(config.courierConfig?.pathao?.enabled));
+  const [redx, setRedx] = useState(Boolean(config.courierConfig?.redx?.enabled));
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1737,11 +1758,11 @@ function DeliverySettings({ save, saving }: { save: (payload: object) => Promise
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <h3 className="font-display font-bold text-gray-900 dark:text-white mb-5">Email SMTP</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input name="emailHost" label="SMTP Host" placeholder="smtp.gmail.com" />
-          <Input name="emailPort" type="number" label="SMTP Port" defaultValue="587" />
-          <Input name="emailUser" label="SMTP User" />
-          <Input name="emailPass" type="password" label="SMTP Password" />
-          <Input className="sm:col-span-2" name="fromEmail" type="email" label="Sender Email" />
+          <Input name="emailHost" label="SMTP Host" placeholder="smtp.gmail.com" defaultValue={config.emailConfig?.host ?? ""} />
+          <Input name="emailPort" type="number" label="SMTP Port" defaultValue={config.emailConfig ? String(config.emailConfig.port) : "587"} />
+          <Input name="emailUser" label="SMTP User" defaultValue={config.emailConfig?.user ?? ""} />
+          <Input name="emailPass" type="password" label="SMTP Password" defaultValue={config.emailConfig?.pass ?? ""} />
+          <Input className="sm:col-span-2" name="fromEmail" type="email" label="Sender Email" defaultValue={config.emailConfig?.fromEmail ?? ""} />
         </div>
       </div>
 
@@ -1750,20 +1771,20 @@ function DeliverySettings({ save, saving }: { save: (payload: object) => Promise
         <div className="space-y-1">
           <ToggleRow label="Steadfast Courier API" description="Automate order shipments via Steadfast Courier." selected={steadfast} onChange={setSteadfast}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input name="steadfastKey" label="API Key" />
-              <Input name="steadfastSecret" type="password" label="Secret Key" />
+              <Input name="steadfastKey" label="API Key" defaultValue={config.courierConfig?.steadfast?.apiKey ?? ""} />
+              <Input name="steadfastSecret" type="password" label="Secret Key" defaultValue={config.courierConfig?.steadfast?.secretKey ?? ""} />
             </div>
           </ToggleRow>
           <ToggleRow label="Pathao Courier API" description="Automate order shipments via Pathao Logistics." selected={pathao} onChange={setPathao}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input name="pathaoId" label="Client ID" />
-              <Input name="pathaoEmail" label="Client Email" />
-              <Input name="pathaoSecret" type="password" label="Client Secret" />
+              <Input name="pathaoId" label="Client ID" defaultValue={config.courierConfig?.pathao?.clientId ?? ""} />
+              <Input name="pathaoEmail" label="Client Email" defaultValue={config.courierConfig?.pathao?.clientEmail ?? ""} />
+              <Input name="pathaoSecret" type="password" label="Client Secret" defaultValue={config.courierConfig?.pathao?.clientSecret ?? ""} />
             </div>
           </ToggleRow>
           <ToggleRow label="RedX Courier API" description="Automate order shipments via RedX." selected={redx} onChange={setRedx}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input name="redxKey" label="API Key" />
+              <Input name="redxKey" label="API Key" defaultValue={config.courierConfig?.redx?.apiKey ?? ""} />
             </div>
           </ToggleRow>
         </div>
@@ -1777,8 +1798,13 @@ function DeliverySettings({ save, saving }: { save: (payload: object) => Promise
 }
 
 /* ==================== STORAGE ==================== */
-function StorageSettings({ save, saving, configured }: { save: (payload: object) => Promise<void>; saving: boolean; configured: boolean }) {
-  const [provider, setProvider] = useState<"local" | "hostinger-object-storage">("local");
+function StorageSettings({ save, saving, configured, storage }: {
+  save: (payload: object) => Promise<void>;
+  saving: boolean;
+  configured: boolean;
+  storage: NonNullable<Config["storageConfig"]> | undefined;
+}) {
+  const [provider, setProvider] = useState<"local" | "hostinger-object-storage">(storage?.provider === "hostinger-object-storage" ? "hostinger-object-storage" : "local");
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1818,17 +1844,17 @@ function StorageSettings({ save, saving, configured }: { save: (payload: object)
 
         {provider === "local" ? (
           <div className="grid grid-cols-1 gap-4">
-            <Input name="folderPath" label="Upload Folder Path" placeholder="../public_html/uploads/products" />
-            <Input name="publicBaseUrl" label="Public Base URL" placeholder="https://yourstore.com/uploads/products" />
+            <Input name="folderPath" label="Upload Folder Path" placeholder="../public_html/uploads/products" defaultValue={storage?.folderPath ?? ""} />
+            <Input name="publicBaseUrl" label="Public Base URL" placeholder="https://yourstore.com/uploads/products" defaultValue={storage?.publicBaseUrl ?? ""} />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input className="sm:col-span-2" name="endpoint" label="Endpoint URL" />
-            <Input name="region" label="Region" />
-            <Input name="bucket" label="Bucket Name" />
-            <Input name="accessKeyId" label="Access Key ID" />
-            <Input name="secretAccessKey" type="password" label="Secret Access Key" />
-            <Input name="objPublicUrl" label="Public Base URL (Optional)" />
+            <Input className="sm:col-span-2" name="endpoint" label="Endpoint URL" defaultValue={storage?.endpoint ?? ""} />
+            <Input name="region" label="Region" defaultValue={storage?.region ?? ""} />
+            <Input name="bucket" label="Bucket Name" defaultValue={storage?.bucket ?? ""} />
+            <Input name="accessKeyId" label="Access Key ID" defaultValue={storage?.accessKeyId ?? ""} />
+            <Input name="secretAccessKey" type="password" label="Secret Access Key" defaultValue={storage?.secretAccessKey ?? ""} />
+            <Input name="objPublicUrl" label="Public Base URL (Optional)" defaultValue={storage?.publicBaseUrl ?? ""} />
           </div>
         )}
 
