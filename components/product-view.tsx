@@ -344,7 +344,7 @@ export function ProductView({ slug }: { slug: string }) {
           Customer Reviews ({product.reviews?.length ?? 0})
         </h2>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px" }}>
+        <div className="reviews-grid">
           {/* Reviews List */}
           <div style={{ display: "grid", gap: "16px" }}>
             {!product.reviews?.length ? (

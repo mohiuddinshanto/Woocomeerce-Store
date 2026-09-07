@@ -1,10 +1,10 @@
 "use client";
 
-import { Button, Input, Select, SelectItem, Switch, Textarea } from "@heroui/react";
+import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Select, SelectItem, Switch, Textarea } from "@heroui/react";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { FiPlus, FiStar, FiTrash2, FiX } from "react-icons/fi";
+import { FiMenu, FiPlus, FiSend, FiStar, FiTrash2, FiTruck, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -105,6 +105,7 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-amber/10 text-amber",
   CONFIRMED: "bg-primary/10 text-primary",
   PACKED: "bg-cyan/10 text-cyan",
+  SENT: "bg-indigo-500/10 text-indigo-500",
   SHIPPED: "bg-blue-500/10 text-blue-500",
   DELIVERED: "bg-emerald/10 text-emerald",
   CANCELLED: "bg-rose-100 dark:bg-rose-500/10 text-rose-500",
@@ -145,6 +146,7 @@ export function AdminPanel() {
   const [saving, setSaving] = useState(false);
   const [section, setSection] = useState<Section>("overview");
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileSidebar, setMobileSidebar] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(tokenKey);
@@ -228,20 +230,32 @@ export function AdminPanel() {
 
   return (
     <div className="h-screen flex bg-gray-50 dark:bg-[#09090f]">
+      {/* MOBILE BACKDROP */}
+      {mobileSidebar && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileSidebar(false)} />
+      )}
+
       {/* SIDEBAR */}
       <aside
-        className={`${collapsed ? "w-16" : "w-60"} shrink-0 flex flex-col bg-white dark:bg-[#0d0d1a] border-r border-gray-200 dark:border-white/5 transition-all duration-300 overflow-hidden`}
+        className={`w-72 max-w-[82vw] shrink-0 flex flex-col bg-white dark:bg-[#0d0d1a] border-r border-gray-200 dark:border-white/5 overflow-hidden transition-transform duration-300 ${
+          mobileSidebar ? "translate-x-0" : "-translate-x-full"
+        } fixed inset-y-0 left-0 z-50 lg:static lg:z-auto lg:translate-x-0 ${collapsed ? "lg:w-16" : "lg:w-60"}`}
       >
         <div className="h-16 flex items-center gap-3 px-4 border-b border-gray-200 dark:border-white/5 shrink-0">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-cyan flex items-center justify-center text-white font-display font-bold text-sm shrink-0 shadow-lg shadow-primary/20">
             A
           </div>
-          {!collapsed && (
-            <div>
-              <p className="font-display font-bold text-gray-900 dark:text-white text-sm leading-tight">{config.storeName}</p>
-              <p className="text-[10px] text-gray-400 dark:text-slate-500">Admin Control Panel</p>
-            </div>
-          )}
+          <div className={`flex-1 min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
+            <p className="font-display font-bold text-gray-900 dark:text-white text-sm leading-tight truncate">{config.storeName}</p>
+            <p className="text-[10px] text-gray-400 dark:text-slate-500">Admin Control Panel</p>
+          </div>
+          <button
+            onClick={() => setMobileSidebar(false)}
+            className="lg:hidden w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"
+            aria-label="Close menu"
+          >
+            <FiX />
+          </button>
         </div>
 
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
@@ -252,6 +266,7 @@ export function AdminPanel() {
               onClick={(e) => {
                 e.preventDefault();
                 setSection(item.key);
+                setMobileSidebar(false);
               }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group ${
                 section === item.key
@@ -262,8 +277,10 @@ export function AdminPanel() {
               <span className={`text-base shrink-0 transition-transform group-hover:scale-110 ${section === item.key ? "text-primary" : ""}`}>
                 {item.icon}
               </span>
-              {!collapsed && <span className="text-sm font-medium truncate">{item.label}</span>}
-              {!collapsed && section === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+              <span className={`text-sm font-medium truncate ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
+              {section === item.key && (
+                <span className={`ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0 ${collapsed ? "lg:hidden" : ""}`} />
+              )}
             </Link>
           ))}
         </nav>
@@ -274,7 +291,7 @@ export function AdminPanel() {
             className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-gray-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm border border-gray-200 dark:border-white/8"
           >
             <span className={`transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}>◁</span>
-            {!collapsed && <span className="text-xs">Collapse</span>}
+            <span className={`text-xs ${collapsed ? "lg:hidden" : ""}`}>Collapse</span>
           </button>
         </div>
       </aside>
@@ -282,10 +299,19 @@ export function AdminPanel() {
       {/* MAIN */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* TOP BAR */}
-        <div className="h-16 flex items-center justify-between px-6 bg-white dark:bg-[#0d0d1a]/80 glass border-b border-gray-200 dark:border-white/5 shrink-0">
-          <div>
-            <h1 className="font-display font-bold text-lg text-gray-900 dark:text-white capitalize">{title(section)}</h1>
-            <p className="text-xs text-gray-400 dark:text-slate-500">{config.storeName}</p>
+        <div className="h-16 flex items-center justify-between px-4 sm:px-6 bg-white dark:bg-[#0d0d1a]/80 glass border-b border-gray-200 dark:border-white/5 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileSidebar(true)}
+              className="lg:hidden w-9 h-9 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 dark:border-white/8 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5"
+              aria-label="Open menu"
+            >
+              <FiMenu />
+            </button>
+            <div className="min-w-0">
+              <h1 className="font-display font-bold text-base sm:text-lg text-gray-900 dark:text-white capitalize truncate">{title(section)}</h1>
+              <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{config.storeName}</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -309,11 +335,11 @@ export function AdminPanel() {
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {section === "overview" && <AdminOverview token={token} />}
           {section === "products" && <AdminProducts token={token} />}
           {section === "categories" && <AdminCategories token={token} />}
-          {section === "orders" && <AdminOrders token={token} />}
+          {section === "orders" && <AdminOrders token={token} config={config} />}
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
@@ -432,7 +458,7 @@ function AdminOverview({ token }: { token: string }) {
                           onChange={(e) => updateOrderStatus(order.id, e.target.value, order.paymentStatus)}
                           className="w-32"
                         >
-                          {["PENDING", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
+                          {["PENDING", "CONFIRMED", "PACKED", "SENT", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
                             <SelectItem key={s}>{s}</SelectItem>
                           ))}
                         </Select>
@@ -1181,9 +1207,10 @@ function AdminCategories({ token }: { token: string }) {
 }
 
 /* ==================== ORDERS (KANBAN) ==================== */
-function AdminOrders({ token }: { token: string }) {
+function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [openCourier, setOpenCourier] = useState<string | null>(null);
 
   const load = () => {
     api("/api/admin/orders", token)
@@ -1204,11 +1231,37 @@ function AdminOrders({ token }: { token: string }) {
     } else toast.error("আপডেট করা যায়নি");
   }
 
-  const columns = ["PENDING", "CONFIRMED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"];
+  const courierPrefix: Record<string, string> = { steadfast: "ST", pathao: "PT", redx: "RX" };
+  const couriers = [
+    { key: "steadfast", label: "Steadfast", enabled: Boolean(config.courierConfig?.steadfast?.enabled) },
+    { key: "pathao", label: "Pathao", enabled: Boolean(config.courierConfig?.pathao?.enabled) },
+    { key: "redx", label: "RedX", enabled: Boolean(config.courierConfig?.redx?.enabled) },
+  ].filter((c) => c.enabled);
+
+  const courierStats = couriers.map((c) => {
+    const parcels = orders.filter((o) => (o.courierName || "").trim().toLowerCase() === c.label.toLowerCase());
+    return { ...c, parcels };
+  });
+  const allParcels = orders.filter((o) => o.courierName);
+  const courierTotalAmount = allParcels.reduce((s, o) => s + Number(o.totalAmount), 0);
+
+  async function sendToCourier(o: Order, key: string) {
+    const c = couriers.find((x) => x.key === key);
+    if (!c) return;
+    const tracking = o.courierTrackingId || `${courierPrefix[c.key] ?? "PC"}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+    const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "SENT", courierName: c.label, courierTrackingId: tracking }) });
+    if (res.ok) {
+      toast.success(`#${o.id.slice(0, 6)} → ${c.label}`);
+      load();
+    } else toast.error("Sent করা যায়নি");
+  }
+
+  const columns = ["PENDING", "CONFIRMED", "PACKED", "SENT", "SHIPPED", "DELIVERED", "CANCELLED"];
   const columnColor: Record<string, string> = {
     PENDING: "text-amber border-amber/30 bg-amber/5",
     CONFIRMED: "text-primary border-primary/30 bg-primary/5",
     PACKED: "text-cyan border-cyan/30 bg-cyan/5",
+    SENT: "text-indigo-500 border-indigo-500/30 bg-indigo-500/5",
     SHIPPED: "text-blue-500 border-blue-500/30 bg-blue-500/5",
     DELIVERED: "text-emerald border-emerald/30 bg-emerald/5",
     CANCELLED: "text-rose-500 border-rose-500/30 bg-rose-500/5",
@@ -1217,6 +1270,7 @@ function AdminOrders({ token }: { token: string }) {
     PENDING: "bg-amber",
     CONFIRMED: "bg-primary",
     PACKED: "bg-cyan",
+    SENT: "bg-indigo-500",
     SHIPPED: "bg-blue-500",
     DELIVERED: "bg-emerald",
     CANCELLED: "bg-rose-500",
@@ -1241,38 +1295,166 @@ function AdminOrders({ token }: { token: string }) {
         </div>
       </div>
 
+      {couriers.length > 0 && (
+        <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-gray-100 dark:border-white/6">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan flex items-center justify-center text-white">
+                <FiTruck size={16} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-display font-bold text-gray-900 dark:text-white text-sm">Courier Parcels</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
+                  {allParcels.length} parcels sent · {money(courierTotalAmount)} total value
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {couriers.map((c) => (
+                <span key={c.key} className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-500">
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/8">
+                <tr>
+                  {["Courier", "Parcels", "Total Amount", "SENT", "SHIPPED", "DELIVERED", "RETURNED", ""].map((h) => (
+                    <th key={h} className="py-2.5 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-white/4">
+                {courierStats.map((c) => {
+                  const count = (st: string) => c.parcels.filter((o) => o.status === st).length;
+                  return (
+                    <tr key={c.key} className="hover:bg-gray-50/60 dark:hover:bg-white/3">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                          <span className="text-xs font-bold text-gray-800 dark:text-slate-200">{c.label}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{c.parcels.length}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(c.parcels.reduce((s, o) => s + Number(o.totalAmount), 0))}</td>
+                      <td className="py-3 px-4 text-xs text-gray-500">{count("SENT")}</td>
+                      <td className="py-3 px-4 text-xs text-gray-500">{count("SHIPPED")}</td>
+                      <td className="py-3 px-4 text-xs text-gray-500">{count("DELIVERED")}</td>
+                      <td className="py-3 px-4 text-xs text-gray-500">{count("RETURNED")}</td>
+                      <td className="py-3 px-4 text-right">
+                        <Button size="sm" variant="flat" onPress={() => setOpenCourier(openCourier === c.key ? null : c.key)}>
+                          {openCourier === c.key ? "Hide" : "Details"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {openCourier &&
+            courierStats
+              .filter((c) => c.key === openCourier)
+              .map((c) => (
+                <div key={c.key} className="border-t border-gray-100 dark:border-white/6">
+                  <div className="px-4 sm:px-5 py-3 text-xs font-bold text-gray-500 dark:text-slate-400">
+                    {c.label} parcels ({c.parcels.length})
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <tbody className="divide-y divide-gray-50 dark:divide-white/4">
+                        {c.parcels.map((o) => (
+                          <tr key={o.id}>
+                            <td className="py-2.5 px-4 font-mono text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
+                            <td className="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">{o.shippingDetails?.name ?? "Guest"}</td>
+                            <td className="py-2.5 px-4 font-mono text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
+                            <td className="py-2.5 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
+                            <td className="py-2.5 px-4">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
+                                {o.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(o.status)}`}>{o.status}</span>
+                            </td>
+                            <td className="py-2.5 px-4 text-xs text-gray-400 whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                        {!c.parcels.length && (
+                          <tr>
+                            <td className="py-4 px-4 text-xs text-gray-400 text-center" colSpan={7}>
+                              No parcels for {c.label} yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+        </div>
+      )}
+
       {view === "kanban" ? (
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 overflow-x-auto pb-2">
+        <div className="flex gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-2 md:overflow-x-visible xl:grid-cols-3">
           {columns.map((col) => {
-            const colOrders = orders.filter((o) => o.status === col);
+            const colOrders = orders.filter((o) => (o.status || "").trim().toUpperCase() === col);
             return (
-              <div key={col} className="min-w-[200px]">
-                <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border ${columnColor[col]}`}>
-                  <span className={`w-2 h-2 rounded-full ${dotColor[col]}`} />
-                  <span className="text-xs font-bold">{col}</span>
-                  <span className="ml-auto text-xs opacity-60">{colOrders.length}</span>
+              <div key={col} className="min-w-[250px] shrink-0 md:min-w-0">
+                <div className={`flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border ${columnColor[col]}`}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor[col]}`} />
+                  <span className="text-xs font-bold truncate">{col}</span>
+                  <span className="ml-auto shrink-0 min-w-[24px] text-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 dark:bg-black/25">
+                    {colOrders.length}
+                  </span>
                 </div>
                 <div className="space-y-3">
                   {colOrders.map((o) => (
-                    <div key={o.id} className="bg-white dark:bg-[#111118] rounded-xl border border-gray-100 dark:border-white/6 p-4 hover:border-primary/20 transition-all hover:shadow-md">
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="font-mono text-xs font-bold text-primary">#{o.id.slice(0, 6)}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
+                    <div key={o.id} className="min-w-0 bg-white dark:bg-[#111118] rounded-xl border border-gray-100 dark:border-white/6 p-4 hover:border-primary/20 transition-all hover:shadow-md">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="font-mono text-xs font-bold text-primary truncate">#{o.id.slice(0, 6)}</span>
+                        <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
                           {o.paymentStatus}
                         </span>
                       </div>
-                      <p className="font-display font-semibold text-sm text-gray-900 dark:text-white">{o.shippingDetails?.name ?? "Guest"}</p>
-                      <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">{o.shippingDetails?.phone}</p>
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-white/6">
-                        <span className="text-xs text-gray-400 dark:text-slate-500">{new Date(o.createdAt).toLocaleDateString()}</span>
+<p className="font-display font-semibold text-sm text-gray-900 dark:text-white truncate">{o.shippingDetails?.name ?? "Guest"}</p>
+<p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5 truncate">{o.shippingDetails?.phone}</p>
+{o.courierName && (
+  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+    <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{o.courierName}</span>
+    {o.courierTrackingId && (
+      <span className="min-w-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-gray-500 font-mono truncate">{o.courierTrackingId}</span>
+    )}
+  </div>
+)}
+                      <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/6">
+                        <span className="text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</span>
                         <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">{money(o.totalAmount)}</span>
                       </div>
-                      <div className="mt-3">
+                      <div className="mt-3 min-w-0">
                         <Select size="sm" aria-label="Move status" selectedKeys={[o.status]} onChange={(e) => updateStatus(o.id, e.target.value, o.paymentStatus)} className="w-full">
                           {columns.map((s) => (
                             <SelectItem key={s}>{s}</SelectItem>
                           ))}
                         </Select>
+                      </div>
+                      <div className="mt-2">
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Button size="sm" variant="flat" className="w-full h-8 text-xs font-bold" isDisabled={!couriers.length}>
+                              <FiSend size={12} /> {o.courierName ? "Resend" : "Send"}
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu aria-label="Send to courier" onAction={(key) => sendToCourier(o, key as string)}>
+                            {couriers.map((c) => (
+                              <DropdownItem key={c.key}>Send via {c.label}</DropdownItem>
+                            ))}
+                          </DropdownMenu>
+                        </Dropdown>
                       </div>
                     </div>
                   ))}
@@ -1288,7 +1470,7 @@ function AdminOrders({ token }: { token: string }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/8">
                 <tr>
-                  {["Order ID", "Customer", "Date", "Total", "Payment", "Status", ""].map((h) => (
+                  {["Order ID", "Customer", "Date", "Total", "Payment", "Status", "Courier", ""].map((h) => (
                     <th key={h} className="py-3 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -1311,6 +1493,16 @@ function AdminOrders({ token }: { token: string }) {
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusPill(o.status)}`}>{o.status}</span>
                     </td>
                     <td className="py-3 px-4">
+                      {o.courierName ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-indigo-500">{o.courierName}</span>
+                          {o.courierTrackingId && <span className="text-[10px] font-mono text-gray-400">{o.courierTrackingId}</span>}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300 dark:text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
                       <Button
                         size="sm"
                         variant={o.paymentStatus === "PAID" ? "flat" : "solid"}
@@ -1324,7 +1516,7 @@ function AdminOrders({ token }: { token: string }) {
                 ))}
                 {!orders.length && (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">
+                    <td colSpan={8} className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">
                       No orders placed yet.
                     </td>
                   </tr>
@@ -1779,7 +1971,7 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
       )}
 
       {sections.map((s, idx) => (
-        <div key={s.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6 space-y-5">
+        <div key={s.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-display font-bold text-gray-900 dark:text-white">Section {idx + 1}</h3>
             <button
@@ -1830,22 +2022,22 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <Switch isSelected={s.auto} onValueChange={(v) => update(s.id, { auto: v })} color="primary">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-4">
+            <Switch isSelected={s.auto} onValueChange={(v) => update(s.id, { auto: v })} color="primary" className="gap-2 min-w-0">
               Auto-slide
             </Switch>
-            <div>
+            <div className="min-w-0">
               <Input type="number" min={1} max={60} label="Seconds" value={String(s.seconds)} onValueChange={(v) => update(s.id, { seconds: Math.max(1, Math.min(60, Number(v) || 1)) })} />
             </div>
-            <Switch isSelected={s.pagination} onValueChange={(v) => update(s.id, { pagination: v })} color="primary">
+            <Switch isSelected={s.pagination} onValueChange={(v) => update(s.id, { pagination: v })} color="primary" className="gap-2 min-w-0">
               Pagination dots
             </Switch>
-            <Switch isSelected={s.loop} onValueChange={(v) => update(s.id, { loop: v })} color="primary">
+            <Switch isSelected={s.loop} onValueChange={(v) => update(s.id, { loop: v })} color="primary" className="gap-2 min-w-0">
               Loop
             </Switch>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
             <Input type="number" min={1} max={4} label="Per view (Mobile)" value={String(s.perView.mobile)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, mobile: Math.max(1, Math.min(4, Number(v) || 1)) } })} />
             <Input type="number" min={1} max={6} label="Per view (Tablet)" value={String(s.perView.tablet)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, tablet: Math.max(1, Math.min(6, Number(v) || 1)) } })} />
             <Input type="number" min={1} max={8} label="Per view (Desktop)" value={String(s.perView.desktop)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, desktop: Math.max(1, Math.min(8, Number(v) || 1)) } })} />

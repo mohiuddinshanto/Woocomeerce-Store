@@ -10,6 +10,7 @@ import { CarouselSlider } from "./carousel-slider";
 import {
   FiArrowRight,
   FiCheckCircle,
+  FiChevronDown,
   FiChevronRight,
   FiClock,
   FiCreditCard,
@@ -32,6 +33,7 @@ import {
   FiTruck,
   FiUser,
   FiX,
+  FiMenu,
   FiZap,
 } from "react-icons/fi";
 
@@ -112,6 +114,7 @@ export function Storefront() {
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [chatConfig, setChatConfig] = useState<ChatConfig | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(null);
   const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
@@ -367,6 +370,14 @@ export function Storefront() {
 
       {/* Site Header */}
       <nav className="site-nav">
+        <button
+          className="menu-toggle"
+          aria-label="Toggle menu"
+          onClick={() => setMobileNavOpen((o) => !o)}
+        >
+          {mobileNavOpen ? <FiX size={22} /> : <FiMenu size={22} />}
+        </button>
+
         <Link href="/" className="brand">
           <span className="mr-2 inline-block h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-center font-display text-lg font-black leading-9 text-white shadow-md shadow-indigo-500/30">
             E
@@ -416,6 +427,62 @@ export function Storefront() {
           </button>
         </div>
       </nav>
+
+      {/* Mobile Menu */}
+      {mobileNavOpen && (
+        <div className="mobile-menu">
+          <div className="mobile-menu-inner">
+            <label className="search mobile-search">
+              <FiSearch />
+              <input
+                aria-label="Search products"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search store…"
+              />
+            </label>
+
+            <button
+              className="mobile-link"
+              onClick={() => {
+                document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
+                setMobileNavOpen(false);
+              }}
+            >
+              All Products
+            </button>
+
+            {navMenus.length > 0
+              ? navMenus.map((item) => (
+                  <MobileNavLink
+                    key={item.id}
+                    item={item}
+                    categories={categories}
+                    pathname={pathname}
+                    onNavigate={() => setMobileNavOpen(false)}
+                  />
+                ))
+              : categories.slice(0, 4).map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/categories/${c.slug}`}
+                    className={`mobile-link ${pathname === `/categories/${c.slug}` ? "active" : ""}`}
+                    onClick={() => setMobileNavOpen(false)}
+                  >
+                    {c.name}
+                  </Link>
+                ))}
+
+            <Link
+              href="/account"
+              className="mobile-link mobile-account"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <FiUser /> My Account
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Hero Banner */}
       <section className="relative border-b border-slate-100 bg-slate-50">
@@ -923,7 +990,7 @@ export function Storefront() {
       )}
 
       {/* Floating Customer Chat Widget */}
-      <div style={{ position: "fixed", bottom: "28px", right: "28px", zIndex: 45 }}>
+      <div className="chat-widget" style={{ position: "fixed", bottom: "28px", right: "28px", zIndex: 45 }}>
         {chatOpen && (
           <div
             style={{
@@ -1183,6 +1250,44 @@ function NavSub({ item, categories, pathname }: { item: MenuItem; categories: Ca
   );
 }
 
+function MobileNavLink({ item, categories, pathname, onNavigate }: { item: MenuItem; categories: Category[]; pathname: string; onNavigate: () => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasKids = (item.children?.length ?? 0) > 0;
+  const href = resolveCategoryHref(item, categories);
+  const cls = pathname === href ? "active" : "";
+  const link = (
+    <Link href={href} className={`mobile-link ${cls}`} onClick={onNavigate}>
+      {item.label}
+    </Link>
+  );
+  if (!hasKids) return link;
+  return (
+    <div className={`mobile-acc ${expanded ? "open" : ""}`}>
+      <div className="mobile-acc-row">
+        {link}
+        <button
+          type="button"
+          aria-label={`Toggle ${item.label}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((o) => !o);
+          }}
+          className="mobile-acc-icon"
+        >
+          <FiChevronDown />
+        </button>
+      </div>
+      {expanded && (
+        <div className="mobile-sub">
+          {item.children!.map((sub) => (
+            <MobileNavLink key={sub.id} item={sub} categories={categories} pathname={pathname} onNavigate={onNavigate} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MiniProductCard({
   p,
   onAdd,
@@ -1245,13 +1350,13 @@ function MiniProductCard({
         {p.description && (
           <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">{p.description}</p>
         )}
-        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 max-sm:flex-col max-sm:items-start">
           <span className="font-mono text-[0.65rem] uppercase tracking-widest text-slate-400">
             {p.category.name}
           </span>
           <button
             onClick={allowAddToCart ? onAdd : buyNow}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.98] ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all active:scale-[0.98] max-sm:w-full max-sm:justify-center ${
               allowAddToCart
                 ? "bg-slate-100 text-slate-700 hover:bg-gradient-to-r hover:from-primary hover:to-indigo-600 hover:text-white"
                 : "bg-gradient-to-r from-primary to-indigo-600 text-white shadow-sm hover:shadow-md"
