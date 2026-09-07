@@ -53,7 +53,10 @@ type Category = {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
+  subCategories?: Category[];
 };
+type MenuItem = { id: string; label: string; type: "category" | "custom"; categoryId?: string; href?: string; children?: MenuItem[] };
 
 type CartItem = {
   id: string;
@@ -111,6 +114,7 @@ export function Storefront() {
   const [chatOpen, setChatOpen] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(null);
+  const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
   const [allowAddToCart, setAllowAddToCart] = useState(true);
 
   useEffect(() => {
@@ -124,6 +128,7 @@ export function Storefront() {
         if (Array.isArray(c)) setCategories(c);
         if (status?.config?.chatConfig) setChatConfig(status.config.chatConfig);
         if (status?.config?.homePageConfig) setHomeConfig(status.config.homePageConfig);
+        if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
         setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
       })
       .catch(() => {});
@@ -376,15 +381,17 @@ export function Storefront() {
           >
             All Products
           </button>
-          {categories.slice(0, 4).map((c) => (
-            <Link
-              key={c.id}
-              href={`/categories/${c.slug}`}
-              className={pathname === `/categories/${c.slug}` ? "active" : ""}
-            >
-              {c.name}
-            </Link>
-          ))}
+          {navMenus.length > 0
+            ? navMenus.map((item) => <NavItem key={item.id} item={item} categories={categories} pathname={pathname} />)
+            : categories.slice(0, 4).map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/categories/${c.slug}`}
+                  className={pathname === `/categories/${c.slug}` ? "active" : ""}
+                >
+                  {c.name}
+                </Link>
+              ))}
         </div>
 
         <div className="nav-actions">
@@ -1113,6 +1120,66 @@ export function Storefront() {
         </>
       )}
     </main>
+  );
+}
+
+function resolveCategoryHref(item: MenuItem, categories: Category[]): string {
+  if (item.type === "custom") return item.href ?? "#";
+  const cat = categories.find((c) => c.id === item.categoryId);
+  return cat ? `/categories/${cat.slug}` : "#";
+}
+
+function NavItem({ item, categories, pathname }: { item: MenuItem; categories: Category[]; pathname: string }) {
+  const hasKids = (item.children?.length ?? 0) > 0;
+  const href = resolveCategoryHref(item, categories);
+  const labelNode = (
+    <>
+      {item.label}
+      {hasKids && <span className="nav-caret">▾</span>}
+    </>
+  );
+  const cls = pathname === href ? "active" : "";
+  if (!hasKids) {
+    return (
+      <Link href={href} className={cls}>
+        {item.label}
+      </Link>
+    );
+  }
+  return (
+    <div className="nav-dd">
+      <Link href={href} className={cls}>
+        {labelNode}
+      </Link>
+      <div className="nav-dd-panel">
+        {item.children!.map((sub) => (
+          <NavSub key={sub.id} item={sub} categories={categories} pathname={pathname} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NavSub({ item, categories, pathname }: { item: MenuItem; categories: Category[]; pathname: string }) {
+  const hasKids = (item.children?.length ?? 0) > 0;
+  const href = resolveCategoryHref(item, categories);
+  const link = (
+    <Link href={href} className={pathname === href ? "active" : ""}>
+      {item.label}
+    </Link>
+  );
+  if (!hasKids) {
+    return <div className="nav-dd-row">{link}</div>;
+  }
+  return (
+    <div className="nav-dd-row">
+      {link}
+      <div className="nav-dd-sub">
+        {item.children!.map((leaf) => (
+          <NavSub key={leaf.id} item={leaf} categories={categories} pathname={pathname} />
+        ))}
+      </div>
+    </div>
   );
 }
 

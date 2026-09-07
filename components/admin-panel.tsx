@@ -41,6 +41,7 @@ type Config = {
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
   chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
   homePageConfig?: { sections: HomeSectionDef[] };
+  navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
 };
 
 type HomeSectionDef = {
@@ -82,6 +83,7 @@ type Order = {
 };
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null; subCategories?: Category[] };
+type MenuItem = { id: string; label: string; type: "category" | "custom"; categoryId?: string; href?: string; children: MenuItem[] };
 type Coupon = { id: string; code: string; type: string; value: string; minSpend?: string; usedCount: number; isActive: boolean };
 type Review = { id: string; rating: number; comment?: string; isApproved: boolean; product: { name: string }; user: { name: string; email: string } };
 type StaffUser = { id: string; name: string; email: string; staffType: string; allowedCategories?: string };
@@ -111,7 +113,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400";
 
-type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "marketing" | "features" | "payments" | "delivery" | "storage";
+type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "◈" },
@@ -122,6 +124,7 @@ const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "reviews", label: "Reviews", icon: "★" },
   { key: "staff", label: "Staff Team", icon: "◉" },
   { key: "home", label: "Home Layout", icon: "⌂" },
+  { key: "menu", label: "Menu Builder", icon: "☰" },
   { key: "marketing", label: "Pixels & Chat", icon: "⬡" },
   { key: "features", label: "Store Features", icon: "⊕" },
   { key: "payments", label: "Payments", icon: "¢" },
@@ -315,6 +318,7 @@ export function AdminPanel() {
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
           {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
+          {section === "menu" && <MenuBuilder config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
           {section === "features" && <FeatureSettings config={config} save={save} saving={saving} />}
 {section === "payments" && <PaymentSettings config={config} save={save} saving={saving} />}
@@ -448,6 +452,257 @@ function AdminOverview({ token }: { token: string }) {
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ==================== MENU BUILDER ==================== */
+function MenuBuilder({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
+  const navConfig = config.navigationConfig ?? { menus: [] };
+  const menu = navConfig.menus[0] ?? { id: "primary", label: "Primary", location: "header", items: [] as MenuItem[] };
+  const [title, setTitle] = useState(menu.label);
+  const [items, setItems] = useState<MenuItem[]>(menu.items);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [pendingCat, setPendingCat] = useState("");
+
+  const loadCats = () => {
+    fetch(`${apiUrl}/api/categories`)
+      .then((r) => r.json())
+      .then((res) => Array.isArray(res) && setCategories(res))
+      .catch(() => {});
+  };
+  useEffect(loadCats, []);
+
+  const dispatch = (fn: (old: MenuItem[]) => MenuItem[]) => setItems(fn);
+
+  const addCategory = (parentId: string, catId: string) => {
+    const cat = categories.find((c) => c.id === catId);
+    if (!cat) return;
+    const node: MenuItem = { id: `mi-${Date.now()}`, label: cat.name, type: "category", categoryId: cat.id, children: [] };
+    dispatch((tree) => {
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      if (!parentId) {
+        carry.push(node);
+        return carry;
+      }
+      const walk = (list: MenuItem[]) => {
+        for (const n of list) {
+          if (n.id === parentId) {
+            n.children = [...n.children, node];
+            return true;
+          }
+          if (walk(n.children)) return true;
+        }
+        return false;
+      };
+      walk(carry);
+      return carry;
+    });
+  };
+
+  const addCustom = (parentId: string) => {
+    dispatch((tree) => {
+      const node: MenuItem = { id: `mi-${Date.now()}`, label: "New link", type: "custom", href: "#", children: [] };
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      if (!parentId) {
+        carry.push(node);
+        return carry;
+      }
+      const walk = (list: MenuItem[]) => {
+        for (const n of list) {
+          if (n.id === parentId) {
+            n.children = [...n.children, node];
+            return true;
+          }
+          if (walk(n.children)) return true;
+        }
+        return false;
+      };
+      walk(carry);
+      return carry;
+    });
+  };
+
+  const updateLabel = (id: string, label: string) =>
+    setItems((tree) => {
+      const walk = (list: MenuItem[]) => {
+        for (const n of list) {
+          if (n.id === id) {
+            n.label = label;
+            if (n.type === "custom" && !n.href?.startsWith("/")) n.href = label.replace(/[^a-z0-9/-]+/gi, "-").toLowerCase();
+            return;
+          }
+          walk(n.children);
+        }
+      };
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      walk(carry);
+      return carry;
+    });
+
+  const updateHref = (id: string, href: string) =>
+    setItems((tree) => {
+      const walk = (list: MenuItem[]) => {
+        for (const n of list) {
+          if (n.id === id) {
+            n.href = href;
+            return;
+          }
+          walk(n.children);
+        }
+      };
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      walk(carry);
+      return carry;
+    });
+
+  const removeItem = (id: string) =>
+    setItems((tree) => {
+      const prune = (list: MenuItem[]): MenuItem[] => list.filter((n) => n.id !== id).map((n) => ({ ...n, children: prune(n.children) }));
+      return prune(tree);
+    });
+
+  const move = (id: string, dir: -1 | 1) =>
+    setItems((tree) => {
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      const walk = (list: MenuItem[]) => {
+        const idx = list.findIndex((n) => n.id === id);
+        if (idx >= 0) {
+          const target = idx + dir;
+          if (target >= 0 && target < list.length) {
+            const [it] = list.splice(idx, 1);
+            list.splice(target, 0, it);
+          }
+          return true;
+        }
+        for (const n of list) if (n.children.length && walk(n.children)) return true;
+        return false;
+      };
+      walk(carry);
+      return carry;
+    });
+
+  const indent = (id: string, dir: -1 | 1) =>
+    setItems((tree) => {
+      const carry = JSON.parse(JSON.stringify(tree)) as MenuItem[];
+      const walk = (list: MenuItem[], parentList: MenuItem[] | null, parent: MenuItem | null): boolean => {
+        for (let i = 0; i < list.length; i++) {
+          const n = list[i];
+          if (n.id === id) {
+            if (dir === 1) {
+              const prev = list[i - 1];
+              if (prev) {
+                list.splice(i, 1);
+                prev.children = [...prev.children, n];
+              }
+            } else {
+              if (parent && parentList) {
+                const pIdx = parentList.indexOf(parent);
+                const [it] = list.splice(i, 1);
+                parentList.splice(pIdx + 1, 0, it);
+              }
+            }
+            return true;
+          }
+          if (walk(n.children, list, n)) return true;
+        }
+        return false;
+      };
+      walk(carry, null, null);
+      return carry;
+    });
+
+  const renderItem = (n: MenuItem, depth: number) => (
+    <li key={n.id} className="py-1">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-white/4 px-2 py-1.5" style={{ marginLeft: depth * 22 }}>
+        <span className="w-6 text-right font-mono text-xs text-gray-300">{depth}</span>
+        <Input
+          size="sm"
+          aria-label="Menu item label"
+          value={n.label}
+          onValueChange={(v) => updateLabel(n.id, v)}
+          className="w-44"
+        />
+        {n.type === "custom" && (
+          <Input
+            size="sm"
+            aria-label="Menu item link"
+            value={n.href ?? ""}
+            onValueChange={(v) => updateHref(n.id, v)}
+            placeholder="/link"
+            className="w-36"
+          />
+        )}
+        {n.type === "category" && (
+          <span className="rounded bg-primary/10 px-2 py-1 text-[0.7rem] font-semibold text-primary">Category</span>
+        )}
+        <div className="flex items-center gap-0.5">
+          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">→</button>
+          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">←</button>
+          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↑</button>
+          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↓</button>
+          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">×</button>
+        </div>
+      </div>
+      {n.children.length > 0 && <ul className="mt-1 space-y-1">{n.children.map((c) => renderItem(c, depth + 1))}</ul>}
+    </li>
+  );
+
+  const saveMenu = () => {
+    save({
+      navigationConfig: { menus: [{ id: menu.id, label: title, location: menu.location, items }] },
+    } as object);
+  };
+
+  return (
+    <div className="space-y-5 max-w-4xl">
+      <div>
+        <h3 className="font-display font-bold text-gray-900 dark:text-white">Menu Builder</h3>
+        <p className="text-sm text-gray-400 dark:text-slate-500">
+          Build a multi-level navigation menu. Nested sub-menus show as dropdowns in the header.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3 bg-white dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 p-4">
+        <Input label="Menu title" value={title} onValueChange={setTitle} className="max-w-xs" />
+        <Select
+          label="Add a category"
+          placeholder="Pick category…"
+          className="max-w-xs"
+          selectedKeys={pendingCat ? [pendingCat] : []}
+          onSelectionChange={(keys) => setPendingCat(Array.from(keys)[0] as string || "")}
+        >
+          {categories.map((c) => (
+            <SelectItem key={c.id} textValue={c.name}>{c.name}</SelectItem>
+          ))}
+        </Select>
+        <button onClick={() => {
+          if (pendingCat) {
+            addCategory("", pendingCat);
+            setPendingCat("");
+          }
+        }} className="h-10 px-4 bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-slate-300 text-sm font-bold rounded-xl hover:bg-primary/10 hover:text-primary transition-colors">
+          Add
+        </button>
+        <button onClick={() => addCustom("")} className="h-10 px-4 bg-gray-100 dark:bg-white/6 text-gray-700 dark:text-slate-300 text-sm font-bold rounded-xl hover:bg-primary/10 hover:text-primary transition-colors">
+          + Custom link
+        </button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-400 dark:text-slate-500 rounded-xl border border-dashed border-gray-200 dark:border-white/8 p-8 text-center">
+          No menu items yet. Start by adding a category or a custom link above.
+        </p>
+      ) : (
+        <ul className="space-y-1">{items.map((n) => renderItem(n, 0))}</ul>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Button color="primary" onPress={saveMenu} isLoading={saving} className="font-bold">
+          Save Menu
+        </Button>
+        <span className="text-xs text-gray-400">Use → to nest an item under the one above it.</span>
       </div>
     </div>
   );
