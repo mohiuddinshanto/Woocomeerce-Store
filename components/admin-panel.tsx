@@ -740,9 +740,8 @@ function AdminProducts({ token }: { token: string }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<{ url: string; preview: string }[]>([]);
   const [search, setSearch] = useState("");
-  const [showOnHome, setShowOnHome] = useState(true);
 
   const load = () =>
     Promise.all([
@@ -766,6 +765,7 @@ function AdminProducts({ token }: { token: string }) {
   async function pickImage(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const preview = URL.createObjectURL(file);
     const form = new FormData();
     form.append("image", file);
     setUploading(true);
@@ -774,9 +774,10 @@ function AdminProducts({ token }: { token: string }) {
       const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setImages((current) => [...current, data.url]);
+      setImages((current) => [...current, { url: data.url, preview }]);
       toast.success("Image uploaded!");
     } catch (error) {
+      URL.revokeObjectURL(preview);
       toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -784,30 +785,44 @@ function AdminProducts({ token }: { token: string }) {
     event.target.value = "";
   }
 
-  function removeImage(urlToRemove: string) {
-    setImages((current) => current.filter((url) => url !== urlToRemove));
+  function removeImage(toRemove: { url: string; preview: string }) {
+    URL.revokeObjectURL(toRemove.preview);
+    setImages((current) => current.filter((i) => i.url !== toRemove.url));
   }
 
   async function createProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     if (!images.length) return toast.error("Upload at least one image first");
+    const name = String(form.get("name") || "").trim();
+    const rawSlug = String(form.get("slug") || "");
+    const slug = (rawSlug || name)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const toBdtNumber = (raw: string | null) => {
+      if (!raw) return undefined;
+      const cleaned = raw.replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "");
+      return cleaned ? Number(cleaned) : undefined;
+    };
     const payload = {
       categoryId: String(form.get("categoryId")),
-      name: String(form.get("name")),
-      slug: String(form.get("slug")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
-      description: String(form.get("description")),
+      name,
+      slug,
+      description: String(form.get("description") || "").trim(),
       longDescription: form.get("longDescription") ? String(form.get("longDescription")) : undefined,
-      price: Number(form.get("price")),
-      salePrice: form.get("salePrice") ? Number(form.get("salePrice")) : undefined,
+      price: toBdtNumber(String(form.get("price") ?? "")),
+      salePrice: toBdtNumber(form.get("salePrice") ? String(form.get("salePrice")) : null),
       stock: Number(form.get("stock") || 0),
-      images,
-      showOnHome,
+      images: images.map((i) => i.url),
     };
     try {
       const response = await api("/api/admin/products", token, { method: "POST", body: JSON.stringify(payload) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
+      if (!response.ok) {
+        const detail = Array.isArray(data.details) ? ` — ${data.details.join(", ")}` : "";
+        throw new Error(data.error + detail);
+      }
       toast.success("Product created!");
       setImages([]);
       setCreating(false);
@@ -821,14 +836,6 @@ function AdminProducts({ token }: { token: string }) {
     const response = await api("/api/admin/products/" + product.id, token, { method: "PATCH", body: JSON.stringify({ isActive: !product.isActive }) });
     if (response.ok) {
       toast.success("Product status updated");
-      load();
-    } else toast.error("Update failed");
-  }
-
-  async function toggleHome(product: Product) {
-    const response = await api("/api/admin/products/" + product.id, token, { method: "PATCH", body: JSON.stringify({ showOnHome: !product.showOnHome }) });
-    if (response.ok) {
-      toast.success(product.showOnHome ? "Now hidden from home page" : "Now visible on home page");
       load();
     } else toast.error("Update failed");
   }
@@ -880,31 +887,19 @@ function AdminProducts({ token }: { token: string }) {
           <form onSubmit={createProduct} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" />
-              <Input label="Slug (Auto Generated)" name="slug" placeholder="classic-cotton-shirt" />
+              <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" />
               <Select label="Category" name="categoryId" isRequired placeholder="Select a category">
                 {categoryOptions(categories).map((category) => (
                   <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
                 ))}
               </Select>
-              <Input label="Regular Price (BDT)" name="price" type="number" isRequired placeholder="1500" />
-              <Input label="Sale Price (BDT)" name="salePrice" type="number" placeholder="1200 (Optional)" />
+              <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" />
+              <Input label="Sale Price (BDT)" name="salePrice" type="text" inputMode="decimal" placeholder="1200 (Optional)" />
               <Input label="Initial Stock Qty" name="stock" type="number" defaultValue="10" />
             </div>
 
             <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" />
             <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" />
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8">
-              <div>
-                <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Show on Home Page</p>
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  {showOnHome
-                    ? "Appears automatically on the home page with this category."
-                    : "Hidden from home page — available only on the category page."}
-                </p>
-              </div>
-              <Switch isSelected={showOnHome} onValueChange={setShowOnHome} color="primary" />
-            </div>
 
             <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors">
               <label className="cursor-pointer inline-flex flex-col items-center gap-2">
@@ -916,12 +911,12 @@ function AdminProducts({ token }: { token: string }) {
 
             {images.length > 0 && (
               <div className="flex flex-wrap gap-3">
-                {images.map((url, index) => (
-                  <div key={url + index} className="relative w-20 h-20">
-                    <img src={url} alt="" className="w-full h-full object-cover rounded-xl" />
+                {images.map((img, index) => (
+                  <div key={img.url + index} className="relative w-20 h-20">
+                    <img src={img.preview || img.url} alt="" className="w-full h-full object-cover rounded-xl" />
                     <button
                       type="button"
-                      onClick={() => removeImage(url)}
+                      onClick={() => removeImage(img)}
                       className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center shadow"
                     >
                       ×
@@ -954,7 +949,7 @@ function AdminProducts({ token }: { token: string }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-white/3">
                 <tr className="border-b border-gray-100 dark:border-white/8">
-                  {["Product", "Category", "Price", "Stock", "Status", "", "Actions"].map((h) => (
+                  {[ "Product", "Category", "Price", "Stock", "Status", "Actions"].map((h) => (
                     <th key={h} className="py-3 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
@@ -979,25 +974,12 @@ function AdminProducts({ token }: { token: string }) {
                       <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${p.isActive ? "bg-emerald/10 text-emerald" : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400"}`}>
+                      <span
+                        onClick={() => toggleActive(p)}
+                        className={`cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold ${p.isActive ? "bg-emerald/10 text-emerald" : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400"}`}
+                      >
                         {p.isActive ? "Active" : "Hidden"}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          title={p.showOnHome ? "Visible on home page" : "Only on category page"}
-                          onClick={() => toggleHome(p)}
-                          className={`cursor-pointer px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            p.showOnHome ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-gray-100 dark:bg-white/8 text-gray-400 dark:text-slate-500 hover:bg-gray-200"
-                          }`}
-                        >
-                          {p.showOnHome ? "Home ✓" : "Shop only"}
-                        </span>
-                        <Button size="sm" variant="flat" color={p.isActive ? "success" : "default"} onPress={() => toggleActive(p)}>
-                          {p.isActive ? "Active" : "Hidden"}
-                        </Button>
-                      </div>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center gap-1 justify-end">
