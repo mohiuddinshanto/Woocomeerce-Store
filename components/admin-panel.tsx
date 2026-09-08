@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { FiMenu, FiPlus, FiSend, FiStar, FiTrash2, FiTruck, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiEdit2, FiMenu, FiPlus, FiSend, FiStar, FiTrash2, FiTruck, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -57,14 +57,32 @@ type HomeSectionDef = {
   showViewAll: boolean;
 };
 
+type ProductImageDetail = {
+  id: string;
+  url: string;
+  altText: string | null;
+  title: string | null;
+  sortOrder: number;
+  isFeatured: boolean;
+};
+
+type VariantValue = { id: string; value: string; image?: string };
+type ProductVariant = { id: string; name: string; values: VariantValue[] };
+
 type Product = {
   id: string;
   name: string;
   slug: string;
+  description: string;
+  longDescription?: string | null;
+  categoryId: string;
   price: string;
   salePrice: string | null;
   stock: number;
   images: string[];
+  imagesDetails?: ProductImageDetail[];
+  variants?: ProductVariant[];
+  variationImages?: Record<string, string>;
   isActive: boolean;
   showOnHome: boolean;
   category: { name: string };
@@ -739,8 +757,10 @@ function AdminProducts({ token }: { token: string }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [creating, setCreating] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [images, setImages] = useState<{ url: string; preview: string }[]>([]);
+  const [gallery, setGallery] = useState<{ id?: string; url: string; preview?: string; altText?: string; title?: string; isFeatured: boolean }[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [search, setSearch] = useState("");
 
   const load = () =>
@@ -762,38 +782,139 @@ function AdminProducts({ token }: { token: string }) {
     (p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.category?.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  async function pickImage(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const preview = URL.createObjectURL(file);
-    const form = new FormData();
-    form.append("image", file);
+  function startCreate() {
+    setEditingProduct(null);
+    setGallery([]);
+    setVariants([]);
+    setCreating(true);
+  }
+
+  function startEdit(p: Product) {
+    setEditingProduct(p);
+    const details = Array.isArray(p.imagesDetails) && p.imagesDetails.length
+      ? p.imagesDetails
+      : p.images.map((url, i) => ({ id: "", url, altText: null as string | null, title: null as string | null, sortOrder: i, isFeatured: i === 0 }));
+    const hasFeatured = details.some((d) => d.isFeatured);
+    const sorted = [...details].sort((a, b) => a.sortOrder - b.sortOrder);
+    setGallery(
+      sorted.map((d) => ({
+        id: d.id || undefined,
+        url: d.url,
+        altText: d.altText ?? undefined,
+        title: d.title ?? undefined,
+        isFeatured: hasFeatured ? d.isFeatured : d.sortOrder === 0,
+      }))
+    );
+    setVariants(
+      Array.isArray(p.variants)
+        ? p.variants.map((v) => ({ id: v.id, name: v.name, values: (v.values ?? []).map((val) => ({ id: val.id, value: val.value, image: val.image })) }))
+        : []
+    );
+    setCreating(true);
+  }
+
+  async function uploadFiles(files: File[]) {
     setUploading(true);
-    toast("Uploading image…");
-    try {
+    let added = 0;
+    const uploads = files.map(async (file) => {
+      const preview = URL.createObjectURL(file);
+      const form = new FormData();
+      form.append("image", file);
       const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-      setImages((current) => [...current, { url: data.url, preview }]);
-      toast.success("Image uploaded!");
-    } catch (error) {
-      URL.revokeObjectURL(preview);
-      toast.error(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setUploading(false);
+      if (!response.ok) {
+        URL.revokeObjectURL(preview);
+        throw new Error(data.error);
+      }
+      return { url: data.url as string, preview };
+    });
+    const results = await Promise.allSettled(uploads);
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        setGallery((current) => [
+          ...current,
+          { url: r.value.url, preview: r.value.preview, isFeatured: current.length === 0 || (current.length > 0 && !current.some((g) => g.isFeatured)) },
+        ]);
+        added++;
+      } else {
+        toast.error(r.reason instanceof Error ? r.reason.message : "Upload failed");
+      }
     }
+    setUploading(false);
+    if (added) toast.success(`${added} image${added > 1 ? "s" : ""} uploaded`);
+  }
+
+  async function pickImages(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (!files.length) return;
+    await uploadFiles(files);
     event.target.value = "";
   }
 
-  function removeImage(toRemove: { url: string; preview: string }) {
-    URL.revokeObjectURL(toRemove.preview);
-    setImages((current) => current.filter((i) => i.url !== toRemove.url));
+  function removeImage(idx: number) {
+    setGallery((current) => {
+      const next = current.filter((_, i) => i !== idx);
+      if (!next.some((g) => g.isFeatured) && next.length) next[0].isFeatured = true;
+      return next;
+    });
   }
 
-  async function createProduct(event: FormEvent<HTMLFormElement>) {
+  function setFeatured(idx: number) {
+    setGallery((current) => current.map((g, i) => ({ ...g, isFeatured: i === idx })));
+  }
+
+  function moveImage(idx: number, dir: -1 | 1) {
+    setGallery((current) => {
+      const target = idx + dir;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      const tmp = next[idx];
+      next[idx] = next[target];
+      next[target] = tmp;
+      return next;
+    });
+  }
+
+  function updateMeta(idx: number, patch: Partial<{ altText: string; title: string }>) {
+    setGallery((current) => current.map((g, i) => (i === idx ? { ...g, ...patch } : g)));
+  }
+
+  function addVariant() {
+    setVariants((current) => [...current, { id: `v${Date.now()}${Math.random().toString(36).slice(2, 6)}`, name: "", values: [] }]);
+  }
+
+  function removeVariant(vIndex: number) {
+    setVariants((current) => current.filter((_, i) => i !== vIndex));
+  }
+
+  function updateVariantName(vIndex: number, name: string) {
+    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, name } : v)));
+  }
+
+  function addValue(vIndex: number) {
+    setVariants((current) =>
+      current.map((v, i) =>
+        i === vIndex ? { ...v, values: [...v.values, { id: `${v.id}-val${Date.now()}${Math.random().toString(36).slice(2, 5)}`, value: "" }] } : v
+      )
+    );
+  }
+
+  function removeValue(vIndex: number, valIndex: number) {
+    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.filter((_, j) => j !== valIndex) } : v)));
+  }
+
+  function updateValueText(vIndex: number, valIndex: number, value: string) {
+    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.map((val, j) => (j === valIndex ? { ...val, value } : val)) } : v)));
+  }
+
+  function setValueImage(vIndex: number, valIndex: number, image: string) {
+    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.map((val, j) => (j === valIndex ? { ...val, image } : val)) } : v)));
+  }
+
+  async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (!images.length) return toast.error("Upload at least one image first");
+    if (!gallery.length) return toast.error("Upload at least one image first");
     const name = String(form.get("name") || "").trim();
     const rawSlug = String(form.get("slug") || "");
     const slug = (rawSlug || name)
@@ -805,30 +926,65 @@ function AdminProducts({ token }: { token: string }) {
       const cleaned = raw.replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "");
       return cleaned ? Number(cleaned) : undefined;
     };
+    const hasFeatured = gallery.some((g) => g.isFeatured);
+    const imageDetails = gallery.map((g, index) => ({
+      url: g.url,
+      altText: g.altText?.trim() || null,
+      title: g.title?.trim() || null,
+      sortOrder: index,
+      isFeatured: hasFeatured ? Boolean(g.isFeatured) : index === 0,
+    }));
+    const cleanVariants = variants
+      .filter((v) => v.name.trim())
+      .map((v) => ({
+        id: v.id,
+        name: v.name.trim(),
+        values: v.values
+          .filter((val) => val.value.trim())
+          .map((val) => ({ id: val.id, value: val.value.trim(), ...(val.image ? { image: val.image } : {}) })),
+      }))
+      .filter((v) => v.values.length > 0);
+    const variationImages: Record<string, string> = {};
+    for (const v of cleanVariants) for (const val of v.values) if (val.image) variationImages[val.id] = val.image;
+    const descriptionText = String(form.get("description") || "").trim();
+    const longDescriptionText = form.get("longDescription") ? String(form.get("longDescription")) : undefined;
+    const price = toBdtNumber(String(form.get("price") ?? ""));
+    const salePrice = toBdtNumber(form.get("salePrice") ? String(form.get("salePrice")) : null);
+    const stock = Number(form.get("stock") || 0);
+    const images = imageDetails.map((i) => i.url);
     const payload = {
       categoryId: String(form.get("categoryId")),
       name,
       slug,
-      description: String(form.get("description") || "").trim(),
-      longDescription: form.get("longDescription") ? String(form.get("longDescription")) : undefined,
-      price: toBdtNumber(String(form.get("price") ?? "")),
-      salePrice: toBdtNumber(form.get("salePrice") ? String(form.get("salePrice")) : null),
-      stock: Number(form.get("stock") || 0),
-      images: images.map((i) => i.url),
+      description: descriptionText,
+      longDescription: longDescriptionText,
+      price,
+      salePrice,
+      stock,
+      images,
+      imageDetails,
+      variants: cleanVariants,
+      variationImages,
     };
     try {
-      const response = await api("/api/admin/products", token, { method: "POST", body: JSON.stringify(payload) });
+      const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
+      const method = editingProduct ? "PATCH" : "POST";
+      const body = editingProduct
+        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, images, imageDetails, variants: cleanVariants, variationImages }
+        : payload;
+      const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
       if (!response.ok) {
         const detail = Array.isArray(data.details) ? ` — ${data.details.join(", ")}` : "";
         throw new Error(data.error + detail);
       }
-      toast.success("Product created!");
-      setImages([]);
+      toast.success(editingProduct ? "Product updated!" : "Product created!");
+      setGallery([]);
+      setEditingProduct(null);
       setCreating(false);
       load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create product");
+      toast.error(error instanceof Error ? error.message : "Could not save product");
     }
   }
 
@@ -856,14 +1012,14 @@ function AdminProducts({ token }: { token: string }) {
           {(["list", "add"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setCreating(t === "add")}
+              onClick={() => (t === "add" ? startCreate() : setCreating(false))}
               className={`px-4 py-2 rounded-lg text-sm font-display font-semibold transition-all ${
                 creating === (t === "add")
                   ? "bg-white dark:bg-[#1a1a2e] text-gray-900 dark:text-white shadow-sm"
                   : "text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
               }`}
             >
-              {t === "list" ? "Product List" : "+ Add Product"}
+              {t === "list" ? "Product List" : (editingProduct ? "← Back to List" : "+ Add Product")}
             </button>
           ))}
         </div>
@@ -884,7 +1040,14 @@ function AdminProducts({ token }: { token: string }) {
 
       {creating ? (
         <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-          <form onSubmit={createProduct} className="space-y-5">
+          {editingProduct && (
+            <div className="mb-4 flex items-center gap-2 text-sm">
+              <FiEdit2 className="text-primary" />
+              <span className="font-semibold text-gray-800 dark:text-slate-100">Editing: {editingProduct.name}</span>
+              <button type="button" onClick={() => { setEditingProduct(null); setCreating(false); }} className="text-xs text-primary underline ml-2">cancel</button>
+            </div>
+          )}
+          <form onSubmit={saveProduct} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" />
               <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" />
@@ -901,41 +1064,139 @@ function AdminProducts({ token }: { token: string }) {
             <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" />
             <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" />
 
-            <div className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors">
-              <label className="cursor-pointer inline-flex flex-col items-center gap-2">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Product Images &amp; Gallery</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-500">★ = Featured (shown on cards &amp; default)</span>
+              </div>
+
+              <label className="border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors cursor-pointer flex flex-col items-center gap-2">
                 <span className="text-2xl">📤</span>
-                <span className="text-sm text-gray-500 dark:text-slate-400">{uploading ? "Uploading image…" : "Click to upload product image"}</span>
-                <input type="file" accept="image/*" onChange={pickImage} hidden />
+                <span className="text-sm text-gray-500 dark:text-slate-400">
+                  {uploading ? "Uploading…" : "Drop images here or click to upload (multiple allowed)"}
+                </span>
+                <input type="file" accept="image/*" multiple onChange={pickImages} hidden />
               </label>
+
+              {gallery.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {gallery.map((img, index) => (
+                    <div key={img.id || img.url + index} className={`relative rounded-xl border-2 overflow-hidden ${img.isFeatured ? "border-primary ring-2 ring-primary/30" : "border-gray-100 dark:border-white/8"}`}>
+                      <div className="relative w-full aspect-square bg-gray-100 dark:bg-white/5">
+                        <img src={img.preview || img.url} alt="" className="w-full h-full object-cover" />
+                        {img.isFeatured && (
+                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-primary/90 text-white text-[9px] font-bold">FEATURED</span>
+                        )}
+                      </div>
+                      <div className="p-1.5 bg-white dark:bg-[#151527] space-y-1">
+                        <input
+                          value={img.altText ?? ""}
+                          onChange={(e) => updateMeta(index, { altText: e.target.value })}
+                          placeholder="Alt text"
+                          className="w-full text-[10px] bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-md px-1.5 py-1 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                        />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-0.5">
+                            <button type="button" onClick={() => setFeatured(index)} title="Set featured" className={`w-6 h-6 rounded-md flex items-center justify-center text-xs ${img.isFeatured ? "text-amber" : "text-gray-300 dark:text-slate-600 hover:text-amber"}`}>
+                              <FiStar size={14} />
+                            </button>
+                            <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move up">
+                              <FiArrowUp size={13} />
+                            </button>
+                            <button type="button" onClick={() => moveImage(index, 1)} disabled={index === gallery.length - 1} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move down">
+                              <FiArrowDown size={13} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => removeImage(index)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Delete">
+                              <FiTrash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {images.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                {images.map((img, index) => (
-                  <div key={img.url + index} className="relative w-20 h-20">
-                    <img src={img.preview || img.url} alt="" className="w-full h-full object-cover rounded-xl" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(img)}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-bold flex items-center justify-center shadow"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+            {/* Variations */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Variations <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(e.g. Color, Size — pick an image per value)</span></span>
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="text-xs flex items-center gap-1 px-3 h-7 rounded-lg bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
+                >
+                  <FiPlus size={13} /> Add Attribute
+                </button>
               </div>
-            )}
+
+              {variants.length === 0 ? (
+                <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
+                  No variations yet. Add attributes like Color or Size so customers can choose — each value can show its own image.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {variants.map((v, vIndex) => (
+                    <div key={v.id} className="border border-gray-100 dark:border-white/8 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          value={v.name}
+                          onChange={(e) => updateVariantName(vIndex, e.target.value)}
+                          placeholder="Attribute name (e.g. Color)"
+                          className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                        />
+                        <button type="button" onClick={() => removeVariant(vIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove attribute">
+                          <FiTrash2 size={13} />
+                        </button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {v.values.map((val, valIndex) => (
+                          <div key={val.id} className="flex items-center gap-2">
+                            <input
+                              value={val.value}
+                              onChange={(e) => updateValueText(vIndex, valIndex, e.target.value)}
+                              placeholder="Value (e.g. Black)"
+                              className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                            />
+                            <select
+                              value={val.image ?? ""}
+                              onChange={(e) => setValueImage(vIndex, valIndex, e.target.value)}
+                              className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-slate-200 max-w-[160px]"
+                              title="Pick image for this variation"
+                            >
+                              <option value="">No image</option>
+                              {gallery.map((g, gi) => (
+                                <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                              ))}
+                            </select>
+                            <button type="button" onClick={() => removeValue(vIndex, valIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
+                              <FiTrash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <button type="button" onClick={() => addValue(vIndex)} className="mt-2 text-xs flex items-center gap-1 px-2.5 h-6 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:text-primary transition-colors">
+                        <FiPlus size={12} /> Add value
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center gap-3 pt-4 border-t border-gray-100 dark:border-white/8">
               <button
                 type="submit"
                 className="px-6 h-10 bg-gradient-to-r from-primary to-indigo-500 text-white font-display font-bold rounded-xl text-sm hover:shadow-lg hover:shadow-primary/30 transition-all"
               >
-                Create & Publish Product
+                {editingProduct ? "Save Changes" : "Create & Publish Product"}
               </button>
               <button
                 type="button"
-                onClick={() => setCreating(false)}
+                onClick={() => { setEditingProduct(null); setCreating(false); }}
                 className="px-6 h-10 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-slate-300 font-semibold rounded-xl text-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
               >
                 Cancel
@@ -983,6 +1244,13 @@ function AdminProducts({ token }: { token: string }) {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center gap-1 justify-end">
+                        <button
+                          onClick={() => startEdit(p)}
+                          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
+                          title="Edit product"
+                        >
+                          <FiEdit2 />
+                        </button>
                         <button
                           onClick={() => deleteProduct(p)}
                           className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"

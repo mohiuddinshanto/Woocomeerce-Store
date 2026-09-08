@@ -27,6 +27,18 @@ type Review = {
   user: { name: string };
 };
 
+type ProductImageDetail = {
+  id: string;
+  url: string;
+  altText: string | null;
+  title: string | null;
+  sortOrder: number;
+  isFeatured: boolean;
+};
+
+type VariantValue = { id: string; value: string; image?: string };
+type ProductVariant = { id: string; name: string; values: VariantValue[] };
+
 type Product = {
   id: string;
   slug: string;
@@ -37,6 +49,9 @@ type Product = {
   description: string;
   longDescription?: string | null;
   images: string[];
+  imagesDetails?: ProductImageDetail[];
+  variants?: ProductVariant[];
+  variationImages?: Record<string, string>;
   category: { name: string; slug: string };
   reviews?: Review[];
 };
@@ -44,6 +59,8 @@ type Product = {
 export function ProductView({ slug }: { slug: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [activeImg, setActiveImg] = useState<string>("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [selected, setSelected] = useState<Record<string, string>>({});
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(5);
@@ -56,7 +73,10 @@ export function ProductView({ slug }: { slug: string }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         setProduct(data);
-        if (data?.images?.length) setActiveImg(data.images[0]);
+        setSelected({});
+        const featured = data?.imagesDetails?.find((i: ProductImageDetail) => i.isFeatured)?.url;
+        if (featured) setActiveImg(featured);
+        else if (data?.images?.length) setActiveImg(data.images[0]);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -92,6 +112,14 @@ export function ProductView({ slug }: { slug: string }) {
 
   const finalPrice = Number(product.salePrice ?? product.price);
   const hasSale = Boolean(product.salePrice && Number(product.salePrice) < Number(product.price));
+
+  function selectVariant(variantId: string, valueId: string, image?: string) {
+    setSelected((prev) => {
+      const next = { ...prev, [variantId]: valueId };
+      if (image) setActiveImg(image);
+      return next;
+    });
+  }
 
   function addToCart(redirect = false) {
     if (!product) return;
@@ -176,10 +204,10 @@ export function ProductView({ slug }: { slug: string }) {
       <div className="product-detail">
         {/* Left Column: Image Showcase */}
         <div>
-          <div className="detail-image">
+          <div className="detail-image" onClick={() => setLightboxOpen(true)} role="button" tabIndex={0} aria-label="View image enlarged" style={{ cursor: "zoom-in" }}>
             <Image
               src={activeImg || product.images[0] || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"}
-              alt={product.name}
+              alt={product.imagesDetails?.find((i) => i.url === activeImg)?.altText || product.name}
               fill
               sizes="50vw"
               priority
@@ -203,12 +231,43 @@ export function ProductView({ slug }: { slug: string }) {
                     background: "none",
                   }}
                 >
-                  <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={imgUrl} alt={product.imagesDetails?.[index]?.altText || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </button>
               ))}
             </div>
           )}
         </div>
+
+        {/* Lightbox */}
+        {lightboxOpen && (
+          <div
+            onClick={() => setLightboxOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1000,
+              background: "rgba(0,0,0,0.85)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "zoom-out",
+              padding: "24px",
+            }}
+          >
+            <img
+              src={activeImg}
+              alt={product.name}
+              style={{
+                maxWidth: "92vw",
+                maxHeight: "88vh",
+                objectFit: "contain",
+                borderRadius: "12px",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+              }}
+            />
+            <span style={{ position: "absolute", top: 24, right: 28, color: "#fff", fontSize: 34, lineHeight: 1, cursor: "pointer" }}>×</span>
+          </div>
+        )}
 
         {/* Right Column: Details & CTA */}
         <div className="product-detail-info">
@@ -231,6 +290,50 @@ export function ProductView({ slug }: { slug: string }) {
           )}
 
           <p className="description">{product.description}</p>
+
+          {product.variants && product.variants.length > 0 && (
+            <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              {product.variants.map((variant) => (
+                <div key={variant.id}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink)", marginBottom: "8px" }}>
+                    {variant.name}
+                    {selected[variant.id] && <span style={{ fontWeight: 400, color: "var(--muted)" }}> — {variant.values.find((v) => v.id === selected[variant.id])?.value}</span>}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {variant.values.map((val) => {
+                      const activeVal = selected[variant.id] === val.id;
+                      return (
+                        <button
+                          key={val.id}
+                          onClick={() => selectVariant(variant.id, val.id, val.image)}
+                          style={{
+                            padding: "7px 14px",
+                            borderRadius: "999px",
+                            border: activeVal ? "2px solid var(--primary)" : "1px solid var(--border)",
+                            background: activeVal ? "var(--primary)" : "transparent",
+                            color: activeVal ? "#fff" : "var(--ink)",
+                            fontSize: "0.85rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            transition: "all .15s ease",
+                          }}
+                        >
+                          {val.image && (
+                            <img
+                              src={val.image}
+                              alt=""
+                              style={{ width: 22, height: 22, borderRadius: 50, objectFit: "cover", verticalAlign: "middle", marginRight: 6, border: "1px solid var(--border)" }}
+                            />
+                          )}
+                          {val.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {product.longDescription && (
             <div
