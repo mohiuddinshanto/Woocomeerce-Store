@@ -25,6 +25,8 @@ type CartItem = {
   qty: number;
   categoryId: string;
   images?: string[];
+  variationId?: string;
+  sku?: string;
 };
 
 type Method = { id: string; label: string };
@@ -131,6 +133,8 @@ export default function CheckoutPage() {
             qty: item.qty,
             price: item.price,
             categoryId: item.categoryId,
+            variationId: item.variationId,
+            sku: item.sku,
           })),
         }),
       });

@@ -48,6 +48,7 @@ type Product = {
   description?: string;
   images: string[];
   categoryId: string;
+  productType?: string;
   category: { id?: string; name: string; slug: string };
 };
 
@@ -68,6 +69,8 @@ type CartItem = {
   price: number;
   categoryId: string;
   qty: number;
+  variationId?: string;
+  sku?: string;
 };
 
 type ChatConfig = {
@@ -252,6 +255,10 @@ export function Storefront() {
   const secs = String(countdown % 60).padStart(2, "0");
 
   function add(p: Product) {
+    if (p.productType === "VARIABLE") {
+      window.location.href = "/products/" + p.slug;
+      return;
+    }
     const price = Number(p.salePrice ?? p.price);
     setCart((old) =>
       old.some((i) => i.id === p.id)
@@ -273,6 +280,10 @@ export function Storefront() {
   }
 
   function buyNow(p: Product) {
+    if (p.productType === "VARIABLE") {
+      window.location.href = "/products/" + p.slug;
+      return;
+    }
     const price = Number(p.salePrice ?? p.price);
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]") as Array<{ id: string; qty: number }>;
     const hit = old.find((i) => i.id === p.id);

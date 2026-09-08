@@ -39,6 +39,35 @@ type ProductImageDetail = {
 type VariantValue = { id: string; value: string; image?: string };
 type ProductVariant = { id: string; name: string; values: VariantValue[] };
 
+type AttributeValue = { id: string; value: string; colorSwatch?: string | null; image?: string | null };
+type ProductAttribute = { id: string; name: string; values: AttributeValue[] };
+
+type VariationAttributeLink = {
+  attributeId: string;
+  valueId: string;
+  attribute?: { id: string; name: string };
+  value?: AttributeValue;
+};
+
+type Variation = {
+  id: string;
+  name: string;
+  sku: string | null;
+  price: string;
+  salePrice: string | null;
+  stock: number;
+  manageStock: boolean;
+  image: string | null;
+  gallery: string[] | null;
+  description: string | null;
+  status: string;
+  attributes: VariationAttributeLink[];
+};
+
+function variationMatches(v: Variation, attrs: Record<string, string>): boolean {
+  return v.attributes.every((x) => attrs[x.attributeId] === x.valueId);
+}
+
 type Product = {
   id: string;
   slug: string;
@@ -46,12 +75,17 @@ type Product = {
   price: string;
   salePrice: string | null;
   stock: number;
+  sku?: string | null;
+  productType?: "SIMPLE" | "VARIABLE";
+  defaultVariationId?: string | null;
   description: string;
   longDescription?: string | null;
   images: string[];
   imagesDetails?: ProductImageDetail[];
   variants?: ProductVariant[];
   variationImages?: Record<string, string>;
+  attributes?: ProductAttribute[];
+  variations?: Variation[];
   category: { name: string; slug: string };
   reviews?: Review[];
 };
@@ -61,6 +95,7 @@ export function ProductView({ slug }: { slug: string }) {
   const [activeImg, setActiveImg] = useState<string>("");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selected, setSelected] = useState<Record<string, string>>({});
+  const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(5);
@@ -73,7 +108,21 @@ export function ProductView({ slug }: { slug: string }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         setProduct(data);
-        setSelected({});
+        const isVar = data?.productType === "VARIABLE" && Array.isArray(data.variations) && data.variations.length > 0;
+        if (isVar) {
+          const active = data.variations.filter((v: Variation) => v.status !== "disabled");
+          const def = data.variations.find((v: Variation) => v.id === data.defaultVariationId) ?? active[0] ?? data.variations[0];
+          if (def && Array.isArray(data.attributes)) {
+            const sel: Record<string, string> = {};
+            for (const attr of data.attributes) {
+              const link = def.attributes.find((a: VariationAttributeLink) => a.attributeId === attr.id);
+              if (link) sel[attr.id] = link.valueId;
+            }
+            setSelected(sel);
+          }
+        } else {
+          setSelected({});
+        }
         const featured = data?.imagesDetails?.find((i: ProductImageDetail) => i.isFeatured)?.url;
         if (featured) setActiveImg(featured);
         else if (data?.images?.length) setActiveImg(data.images[0]);
@@ -90,6 +139,33 @@ export function ProductView({ slug }: { slug: string }) {
       .then((list: Array<{ productId: string }>) => setWishlisted(list.some((i) => i.productId === product?.id)))
       .catch(() => {});
   }, [slug]);
+
+  const isVariable = product?.productType === "VARIABLE" && Array.isArray(product?.variations) && (product?.variations?.length ?? 0) > 0;
+  const activeVariations = isVariable ? (product?.variations ?? []).filter((v) => v.status !== "disabled") : [];
+
+  useEffect(() => {
+    if (!isVariable) {
+      setSelectedVariation(null);
+      return;
+    }
+    const match = activeVariations.find((v) => variationMatches(v, selected)) ?? null;
+    setSelectedVariation(match);
+  }, [selected, isVariable, activeVariations]);
+
+  useEffect(() => {
+    if (!selectedVariation) return;
+    const valueImage = (product?.attributes ?? [])
+      .map((a) => a.values.find((v) => v.id === selected[a.id])?.image)
+      .find((img): img is string => Boolean(img));
+    const target = selectedVariation.image ?? valueImage;
+    if (target) setActiveImg(target);
+  }, [selectedVariation, selected, product]);
+
+  useEffect(() => {
+    if (!product) return;
+    const max = isVariable && selectedVariation ? (selectedVariation.manageStock === false ? 999999 : Number(selectedVariation.stock)) : product.stock;
+    if (qty > Math.max(1, max)) setQty(Math.max(1, max));
+  }, [selectedVariation, isVariable, product, qty]);
 
   if (loading) {
     return (
@@ -110,31 +186,71 @@ export function ProductView({ slug }: { slug: string }) {
     );
   }
 
-  const finalPrice = Number(product.salePrice ?? product.price);
-  const hasSale = Boolean(product.salePrice && Number(product.salePrice) < Number(product.price));
+  const finalPrice = isVariable && selectedVariation ? Number(selectedVariation.salePrice ?? selectedVariation.price) : Number(product.salePrice ?? product.price);
+  const hasSale = isVariable && selectedVariation ? Boolean(selectedVariation.salePrice && Number(selectedVariation.salePrice) < Number(selectedVariation.price)) : Boolean(product.salePrice && Number(product.salePrice) < Number(product.price));
 
-  function selectVariant(variantId: string, valueId: string, image?: string) {
-    setSelected((prev) => {
-      const next = { ...prev, [variantId]: valueId };
-      if (image) setActiveImg(image);
-      return next;
-    });
+  const variationInStock =
+    isVariable && selectedVariation
+      ? selectedVariation.manageStock === false || Number(selectedVariation.stock) > 0
+      : product.stock > 0;
+
+  const displayImages = (() => {
+    if (!isVariable) return product.images;
+    const list: string[] = [];
+    if (selectedVariation?.image) list.push(selectedVariation.image);
+    for (const g of selectedVariation?.gallery ?? []) if (g && !list.includes(g)) list.push(g);
+    const valueImages = (product.attributes ?? [])
+      .map((a) => a.values.find((v) => v.id === selected[a.id])?.image)
+      .filter((img): img is string => Boolean(img));
+    for (const img of valueImages) if (!list.includes(img)) list.push(img);
+    for (const img of product.images) if (!list.includes(img)) list.push(img);
+    return list;
+  })();
+
+  function isValueAvailable(attrId: string, valueId: string): boolean {
+    if (!isVariable) return true;
+    const trial = { ...selected, [attrId]: valueId };
+    return activeVariations.some((v) => variationMatches(v, trial));
+  }
+
+  function choose(attrId: string, valueId: string, image?: string) {
+    if (!product || !isVariable) return;
+    const next = { ...selected, [attrId]: valueId };
+    const match = activeVariations.find((v) => variationMatches(v, next));
+    if (match) {
+      const optimum: Record<string, string> = {};
+      for (const attr of product.attributes ?? []) {
+        const link = match.attributes.find((x) => x.attributeId === attr.id);
+        if (link) optimum[attr.id] = link.valueId;
+      }
+      setSelected(optimum);
+    } else {
+      setSelected(next);
+    }
+    if (image) setActiveImg(image);
   }
 
   function addToCart(redirect = false) {
     if (!product) return;
+    if (isVariable && !selectedVariation) {
+      toast.error("Please select all options first");
+      return;
+    }
+    const key = isVariable && selectedVariation ? `${product.id}:${selectedVariation.id}` : product.id;
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
-    const existing = old.find((i: any) => i.id === product.id);
+    const existing = old.find((i: any) => (isVariable ? `${i.id}:${i.variationId}` : i.id) === key);
 
     const updated = existing
-      ? old.map((i: any) => (i.id === product.id ? { ...i, qty: i.qty + qty } : i))
+      ? old.map((i: any) => (i === existing ? { ...i, qty: i.qty + qty } : i))
       : [
           ...old,
           {
             id: product.id,
+            variationId: isVariable && selectedVariation ? selectedVariation.id : undefined,
+            sku: isVariable && selectedVariation ? selectedVariation.sku ?? undefined : undefined,
             slug: product.slug,
-            name: product.name,
-            images: product.images,
+            name: isVariable && selectedVariation ? `${product.name} — ${selectedVariation.name}` : product.name,
+            images: displayImages.length ? displayImages : product.images,
             price: finalPrice,
             categoryId: product.category.slug,
             qty,
@@ -214,9 +330,9 @@ export function ProductView({ slug }: { slug: string }) {
             />
           </div>
 
-          {product.images.length > 1 && (
+          {displayImages.length > 1 && (
             <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
-              {product.images.map((imgUrl, index) => (
+              {displayImages.map((imgUrl, index) => (
                 <button
                   key={imgUrl + index}
                   onClick={() => setActiveImg(imgUrl)}
@@ -275,11 +391,28 @@ export function ProductView({ slug }: { slug: string }) {
           <h1>{product.name}</h1>
 
           <div className="price-tag">
-            {hasSale && <del>৳ {Number(product.price).toLocaleString("en-BD")}</del>}
+            {hasSale && <del>৳ {(isVariable ? Number(selectedVariation?.price ?? product.price) : Number(product.price)).toLocaleString("en-BD")}</del>}
             <span>৳ {finalPrice.toLocaleString("en-BD")}</span>
           </div>
 
-          {product.stock > 0 ? (
+          {isVariable ? (
+            selectedVariation ? (
+              variationInStock ? (
+                <div className="stock-badge">
+                  <span className="dot" />{" "}
+                  {selectedVariation.manageStock === false ? "In Stock" : `In Stock (${selectedVariation.stock} items available)`}
+                </div>
+              ) : (
+                <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
+                  <span className="dot" style={{ background: "#ef4444" }} /> Out of stock
+                </div>
+              )
+            ) : (
+              <div className="stock-badge" style={{ color: "#ef4444", background: "#fef2f2" }}>
+                <span className="dot" style={{ background: "#ef4444" }} /> Select options to check availability
+              </div>
+            )
+          ) : product.stock > 0 ? (
             <div className="stock-badge">
               <span className="dot" /> In Stock ({product.stock} items available)
             </div>
@@ -289,36 +422,49 @@ export function ProductView({ slug }: { slug: string }) {
             </div>
           )}
 
-          <p className="description">{product.description}</p>
+          <p className="description">{selectedVariation?.description || product.description}</p>
 
-          {product.variants && product.variants.length > 0 && (
+          {isVariable && product.attributes && product.attributes.length > 0 && (
             <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
-              {product.variants.map((variant) => (
-                <div key={variant.id}>
+              {product.attributes.map((attr) => (
+                <div key={attr.id}>
                   <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink)", marginBottom: "8px" }}>
-                    {variant.name}
-                    {selected[variant.id] && <span style={{ fontWeight: 400, color: "var(--muted)" }}> — {variant.values.find((v) => v.id === selected[variant.id])?.value}</span>}
+                    {attr.name}
+                    {selected[attr.id] && (
+                      <span style={{ fontWeight: 400, color: "var(--muted)" }}>
+                        {" "}— {attr.values.find((v) => v.id === selected[attr.id])?.value}
+                      </span>
+                    )}
+                    {selected[attr.id] && (
+                      <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: "0.74rem", marginLeft: "8px" }}>
+                        SKU: {selectedVariation?.sku || product.sku || "-"}
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                    {variant.values.map((val) => {
-                      const activeVal = selected[variant.id] === val.id;
+                    {attr.values.map((val) => {
+                      const activeVal = selected[attr.id] === val.id;
+                      const available = isValueAvailable(attr.id, val.id);
+                      const swatch = val.colorSwatch;
                       return (
                         <button
                           key={val.id}
-                          onClick={() => selectVariant(variant.id, val.id, val.image)}
+                          onClick={() => available && choose(attr.id, val.id, val.image ?? undefined)}
                           style={{
                             padding: "7px 14px",
                             borderRadius: "999px",
                             border: activeVal ? "2px solid var(--primary)" : "1px solid var(--border)",
-                            background: activeVal ? "var(--primary)" : "transparent",
-                            color: activeVal ? "#fff" : "var(--ink)",
+                            background: activeVal ? "var(--primary)" : swatch ? swatch : "transparent",
+                            color: activeVal ? (swatch ? "#fff" : "#fff") : swatch ? "#fff" : "var(--ink)",
                             fontSize: "0.85rem",
                             fontWeight: 600,
-                            cursor: "pointer",
+                            cursor: available ? "pointer" : "not-allowed",
+                            opacity: available ? 1 : 0.35,
+                            textDecoration: available ? "none" : "line-through",
                             transition: "all .15s ease",
                           }}
                         >
-                          {val.image && (
+                          {val.image && !swatch && (
                             <img
                               src={val.image}
                               alt=""
@@ -326,6 +472,7 @@ export function ProductView({ slug }: { slug: string }) {
                             />
                           )}
                           {val.value}
+                          {!available && <span style={{ marginLeft: 4, fontSize: "0.7rem" }}>— sold out</span>}
                         </button>
                       );
                     })}
@@ -388,7 +535,7 @@ export function ProductView({ slug }: { slug: string }) {
               color="primary"
               size="lg"
               className="flex-1 font-bold shadow-lg"
-              isDisabled={!product.stock}
+              isDisabled={isVariable ? !selectedVariation || !variationInStock : !product.stock}
               onPress={() => addToCart(true)}
             >
               Buy Now
@@ -397,7 +544,7 @@ export function ProductView({ slug }: { slug: string }) {
               variant="flat"
               size="lg"
               className="flex-1 font-bold"
-              isDisabled={!product.stock}
+              isDisabled={isVariable ? !selectedVariation || !variationInStock : !product.stock}
               onPress={() => addToCart(false)}
             >
               <FiShoppingBag /> Add to Bag

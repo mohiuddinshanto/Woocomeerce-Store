@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { FiArrowLeft, FiShoppingBag, FiZap } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-type Product = { id: string; slug: string; name: string; price: string; salePrice: string | null; description?: string; images: string[]; category: { name: string; slug: string } };
+type Product = { id: string; slug: string; name: string; price: string; salePrice: string | null; description?: string; images: string[]; productType?: string; category: { name: string; slug: string } };
 type CartItem = { id: string; slug: string; name: string; images: string[]; price: number; categoryId: string; qty: number };
 const money = (v: number | string) => "৳ " + Number(v).toLocaleString("en-BD");
 
@@ -30,6 +30,10 @@ export function CategoryView({ slug }: { slug: string }) {
   }, [slug]);
 
   function add(p: Product) {
+    if (p.productType === "VARIABLE") {
+      window.location.href = "/products/" + p.slug;
+      return;
+    }
     const price = Number(p.salePrice ?? p.price);
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]");
     const hit = old.find((i: CartItem) => i.id === p.id);

@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiEdit2, FiMenu, FiPlus, FiSend, FiStar, FiTrash2, FiTruck, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -66,8 +66,34 @@ type ProductImageDetail = {
   isFeatured: boolean;
 };
 
-type VariantValue = { id: string; value: string; image?: string };
-type ProductVariant = { id: string; name: string; values: VariantValue[] };
+type AttributeValue = { id: string; value: string; colorSwatch?: string | null; image?: string | null };
+
+type ProductAttribute = { id: string; name: string; values: AttributeValue[] };
+
+type VariationAttributeLink = {
+  id?: string;
+  attributeId: string;
+  attribute?: { id: string; name: string };
+  valueId: string;
+  value?: AttributeValue;
+};
+
+type Variation = {
+  id: string;
+  name: string;
+  sku: string | null;
+  price: string;
+  salePrice: string | null;
+  stock: number;
+  manageStock: boolean;
+  weight: string | null;
+  image: string | null;
+  gallery: string[] | null;
+  description: string | null;
+  status: "active" | "disabled";
+  isDefault: boolean;
+  attributes: VariationAttributeLink[];
+};
 
 type Product = {
   id: string;
@@ -79,9 +105,14 @@ type Product = {
   price: string;
   salePrice: string | null;
   stock: number;
+  sku?: string | null;
+  productType?: "SIMPLE" | "VARIABLE";
   images: string[];
   imagesDetails?: ProductImageDetail[];
-  variants?: ProductVariant[];
+  attributes?: ProductAttribute[];
+  variations?: (Variation & { id: string })[];
+  defaultVariationId?: string | null;
+  variants?: { id: string; name: string; values: { id: string; value: string; image?: string }[] }[];
   variationImages?: Record<string, string>;
   isActive: boolean;
   showOnHome: boolean;
@@ -760,8 +791,22 @@ function AdminProducts({ token }: { token: string }) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploading, setUploading] = useState(false);
   const [gallery, setGallery] = useState<{ id?: string; url: string; preview?: string; altText?: string; title?: string; isFeatured: boolean }[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [productType, setProductType] = useState<"SIMPLE" | "VARIABLE">("SIMPLE");
+  const [sku, setSku] = useState("");
+  const [basePrice, setBasePrice] = useState("");
+  const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
+  const [variations, setVariations] = useState<Variation[]>([]);
+  const [defaultVariationId, setDefaultVariationId] = useState<string | null>(null);
+  const [selectedVars, setSelectedVars] = useState<Set<string>>(new Set());
+  const [expandedVar, setExpandedVar] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [generating, setGenerating] = useState(false);
+
+  const variationKey = (v: Variation) =>
+    [...v.attributes]
+      .sort((a, b) => a.attributeId.localeCompare(b.attributeId))
+      .map((a) => `${a.attributeId}:${a.valueId}`)
+      .join("|");
 
   const load = () =>
     Promise.all([
@@ -785,7 +830,14 @@ function AdminProducts({ token }: { token: string }) {
   function startCreate() {
     setEditingProduct(null);
     setGallery([]);
-    setVariants([]);
+    setProductType("SIMPLE");
+    setSku("");
+    setBasePrice("");
+    setAttributes([]);
+    setVariations([]);
+    setDefaultVariationId(null);
+    setSelectedVars(new Set());
+    setExpandedVar(null);
     setCreating(true);
   }
 
@@ -805,11 +857,33 @@ function AdminProducts({ token }: { token: string }) {
         isFeatured: hasFeatured ? d.isFeatured : d.sortOrder === 0,
       }))
     );
-    setVariants(
-      Array.isArray(p.variants)
-        ? p.variants.map((v) => ({ id: v.id, name: v.name, values: (v.values ?? []).map((val) => ({ id: val.id, value: val.value, image: val.image })) }))
+    setProductType(p.productType ?? "SIMPLE");
+    setSku(p.sku ?? "");
+    setBasePrice(String(p.price ?? ""));
+    setAttributes(
+      Array.isArray(p.attributes)
+        ? p.attributes.map((a) => ({
+            id: a.id,
+            name: a.name,
+            values: (a.values ?? []).map((v) => ({ id: v.id, value: v.value, colorSwatch: v.colorSwatch ?? null, image: v.image ?? null })),
+          }))
         : []
     );
+    setVariations(
+      Array.isArray(p.variations)
+        ? p.variations.map((v) => ({
+            ...v,
+            price: String(v.price),
+            salePrice: v.salePrice !== null && v.salePrice !== undefined ? String(v.salePrice) : null,
+            weight: v.weight !== null && v.weight !== undefined ? String(v.weight) : null,
+            gallery: v.gallery ?? null,
+            isDefault: p.defaultVariationId === v.id,
+          }))
+        : []
+    );
+    setDefaultVariationId(p.defaultVariationId ?? null);
+    setSelectedVars(new Set());
+    setExpandedVar(null);
     setCreating(true);
   }
 
@@ -879,36 +953,183 @@ function AdminProducts({ token }: { token: string }) {
     setGallery((current) => current.map((g, i) => (i === idx ? { ...g, ...patch } : g)));
   }
 
-  function addVariant() {
-    setVariants((current) => [...current, { id: `v${Date.now()}${Math.random().toString(36).slice(2, 6)}`, name: "", values: [] }]);
+  function addAttribute() {
+    setAttributes((current) => [...current, { id: `a${Date.now()}${Math.random().toString(36).slice(2, 6)}`, name: "", values: [] }]);
   }
 
-  function removeVariant(vIndex: number) {
-    setVariants((current) => current.filter((_, i) => i !== vIndex));
+  function removeAttribute(aIndex: number) {
+    setAttributes((current) => {
+      const removed = current[aIndex];
+      const next = current.filter((_, i) => i !== aIndex);
+      const removedValueIds = new Set(removed.values.map((v) => v.id));
+      const removedAttrId = removed.id;
+      setVariations((vs) =>
+        vs
+          .map((v) => ({ ...v, attributes: v.attributes.filter((a) => a.attributeId !== removedAttrId && !removedValueIds.has(a.valueId)) }))
+          .filter((v) => v.attributes.length > 0)
+      );
+      return next;
+    });
   }
 
-  function updateVariantName(vIndex: number, name: string) {
-    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, name } : v)));
+  function updateAttributeName(aIndex: number, name: string) {
+    setAttributes((current) => current.map((a, i) => (i === aIndex ? { ...a, name } : a)));
   }
 
-  function addValue(vIndex: number) {
-    setVariants((current) =>
-      current.map((v, i) =>
-        i === vIndex ? { ...v, values: [...v.values, { id: `${v.id}-val${Date.now()}${Math.random().toString(36).slice(2, 5)}`, value: "" }] } : v
+  function addAttributeValue(aIndex: number) {
+    setAttributes((current) =>
+      current.map((a, i) =>
+        i === aIndex ? { ...a, values: [...a.values, { id: `v${Date.now()}${Math.random().toString(36).slice(2, 6)}`, value: "" }] } : a
       )
     );
   }
 
-  function removeValue(vIndex: number, valIndex: number) {
-    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.filter((_, j) => j !== valIndex) } : v)));
+  function removeAttributeValue(aIndex: number, vIndex: number) {
+    setAttributes((current) => {
+      const removedId = current[aIndex].values[vIndex].id;
+      const next = current.map((a, i) => (i === aIndex ? { ...a, values: a.values.filter((_, j) => j !== vIndex) } : a));
+      setVariations((vs) => vs.map((v) => ({ ...v, attributes: v.attributes.filter((x) => x.valueId !== removedId) })).filter((v) => v.attributes.length > 0));
+      return next;
+    });
   }
 
-  function updateValueText(vIndex: number, valIndex: number, value: string) {
-    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.map((val, j) => (j === valIndex ? { ...val, value } : val)) } : v)));
+  function updateAttributeValue(aIndex: number, vIndex: number, patch: Partial<AttributeValue>) {
+    setAttributes((current) =>
+      current.map((a, i) =>
+        i === aIndex ? { ...a, values: a.values.map((val, j) => (j === vIndex ? { ...val, ...patch } : val)) } : a
+      )
+    );
   }
 
-  function setValueImage(vIndex: number, valIndex: number, image: string) {
-    setVariants((current) => current.map((v, i) => (i === vIndex ? { ...v, values: v.values.map((val, j) => (j === valIndex ? { ...val, image } : val)) } : v)));
+  function uid() {
+    return `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function generateVariationsFromAttributes() {
+    const validAttrs = attributes.filter((a) => a.name.trim() && a.values.some((v) => v.value.trim()));
+    if (validAttrs.length < 1) {
+      toast.error("Add attributes with values first (e.g. Color → Black, White)");
+      return;
+    }
+    setGenerating(true);
+    const clean = validAttrs.map((a) => ({
+      id: a.id,
+      name: a.name.trim(),
+      values: a.values.filter((v) => v.value.trim()).map((v) => ({ ...v, value: v.value.trim() })),
+    }));
+    let combos: { parts: string[]; attributeValueIds: Record<string, string> }[] = [{ parts: [], attributeValueIds: {} }];
+    for (const attr of clean) {
+      const next: typeof combos = [];
+      for (const combo of combos) {
+        for (const val of attr.values) {
+          next.push({
+            parts: [...combo.parts, val.value],
+            attributeValueIds: { ...combo.attributeValueIds, [attr.id]: val.id },
+          });
+        }
+      }
+      combos = next;
+    }
+
+    // Preserve previously edited data for combos that already exist
+    const existingMap = new Map<string, Variation>();
+    variations.forEach((v) => existingMap.set(variationKey(v), v));
+
+    const basePriceValue = Number(basePrice || 0);
+    const generated: Variation[] = combos.map((combo) => {
+      const key = Object.entries(combo.attributeValueIds)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([attrId, valueId]) => `${attrId}:${valueId}`)
+        .join("|");
+      const existing = existingMap.get(key);
+      const attrs = Object.entries(combo.attributeValueIds).map(([attributeId, valueId]) => ({ attributeId, valueId }));
+      if (existing) {
+        return { ...existing, attributes: attrs };
+      }
+      const name = combo.parts.join(" / ");
+      const skuBase = [sku, ...combo.parts].filter(Boolean).map((s) => s.replace(/[^A-Za-z0-9]+/g, "-").replace(/(^-|-$)/g, "").toUpperCase()).join("-");
+      return {
+        id: uid(),
+        name,
+        sku: skuBase || null,
+        price: String(basePriceValue || 0),
+        salePrice: null,
+        stock: 0,
+        manageStock: true,
+        weight: null,
+        image: null,
+        gallery: null,
+        description: null,
+        status: "active" as const,
+        isDefault: false,
+        attributes: attrs,
+      };
+    });
+    setVariations(generated);
+    setGenerating(false);
+    toast.success(`Generated ${generated.length} variation${generated.length > 1 ? "s" : ""}`);
+  }
+
+  function updateVariation(vid: string, patch: Partial<Variation>) {
+    setVariations((current) => current.map((v) => (v.id === vid ? { ...v, ...patch } : v)));
+  }
+
+  function duplicateVariation(vid: string) {
+    setVariations((current) => {
+      const src = current.find((v) => v.id === vid);
+      if (!src) return current;
+      const copy: Variation = {
+        ...src,
+        id: uid(),
+        name: `${src.name} (Copy)`,
+        sku: src.sku ? `${src.sku}-COPY` : null,
+        isDefault: false,
+      };
+      return [...current, copy];
+    });
+  }
+
+  function removeVariation(vid: string) {
+    setVariations((current) => {
+      const next = current.filter((v) => v.id !== vid);
+      setDefaultVariationId((d) => (d === vid ? null : d));
+      return next;
+    });
+  }
+
+  function toggleSelectVar(vid: string) {
+    setSelectedVars((current) => {
+      const next = new Set(current);
+      if (next.has(vid)) next.delete(vid);
+      else next.add(vid);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVars(checked: boolean) {
+    setSelectedVars(checked ? new Set(variations.map((v) => v.id)) : new Set());
+  }
+
+  function bulkApply(action: "setPrice" | "setSalePrice" | "setStock" | "enable" | "disable" | "delete", value?: number) {
+    if (!selectedVars.size) return toast.error("Select at least one variation first");
+    setVariations((current) => {
+      let next = [...current];
+      if (action === "delete") {
+        next = next.filter((v) => !selectedVars.has(v.id));
+      } else if (action === "setPrice") {
+        next = next.map((v) => (selectedVars.has(v.id) ? { ...v, price: String(value ?? 0) } : v));
+      } else if (action === "setSalePrice") {
+        next = next.map((v) => (selectedVars.has(v.id) ? { ...v, salePrice: value ? String(value) : null } : v));
+      } else if (action === "setStock") {
+        next = next.map((v) => (selectedVars.has(v.id) ? { ...v, stock: Math.max(0, Math.floor(value ?? 0)) } : v));
+      } else if (action === "enable") {
+        next = next.map((v) => (selectedVars.has(v.id) ? { ...v, status: "active" as const } : v));
+      } else if (action === "disable") {
+        next = next.map((v) => (selectedVars.has(v.id) ? { ...v, status: "disabled" as const } : v));
+      }
+      return next;
+    });
+    setSelectedVars(new Set());
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
@@ -934,24 +1155,44 @@ function AdminProducts({ token }: { token: string }) {
       sortOrder: index,
       isFeatured: hasFeatured ? Boolean(g.isFeatured) : index === 0,
     }));
-    const cleanVariants = variants
-      .filter((v) => v.name.trim())
+    const cleanAttributes = attributes
+      .filter((a) => a.name.trim())
+      .map((a) => ({
+        id: a.id,
+        name: a.name.trim(),
+        values: a.values
+          .filter((v) => v.value.trim())
+          .map((v) => ({ id: v.id, value: v.value.trim(), colorSwatch: v.colorSwatch?.trim() || null, image: v.image || null })),
+      }))
+      .filter((a) => a.values.length > 0);
+    const validValueIds = new Set(cleanAttributes.flatMap((a) => a.values.map((v) => v.id)));
+    const cleanVariations = variations
+      .filter((v) => v.attributes.length > 0 && v.attributes.every((x) => validValueIds.has(x.valueId)))
       .map((v) => ({
         id: v.id,
-        name: v.name.trim(),
-        values: v.values
-          .filter((val) => val.value.trim())
-          .map((val) => ({ id: val.id, value: val.value.trim(), ...(val.image ? { image: val.image } : {}) })),
-      }))
-      .filter((v) => v.values.length > 0);
-    const variationImages: Record<string, string> = {};
-    for (const v of cleanVariants) for (const val of v.values) if (val.image) variationImages[val.id] = val.image;
+        name: v.name || v.attributes.map((x) => x.value?.value ?? "").join(" / "),
+        sku: v.sku?.trim() || null,
+        price: Number(String(v.price).replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "")) || 0,
+        salePrice: v.salePrice ? Number(String(v.salePrice).replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "")) : null,
+        stock: Math.max(0, Math.floor(Number(v.stock) || 0)),
+        manageStock: v.manageStock,
+        weight: v.weight ? v.weight.trim() : null,
+        image: v.image || null,
+        gallery: v.gallery && v.gallery.length ? v.gallery : null,
+        description: v.description?.trim() || null,
+        status: v.status,
+        isDefault: v.isDefault || defaultVariationId === v.id,
+        attributes: v.attributes.map((x) => ({ attributeId: x.attributeId, valueId: x.valueId })),
+      }));
     const descriptionText = String(form.get("description") || "").trim();
     const longDescriptionText = form.get("longDescription") ? String(form.get("longDescription")) : undefined;
     const price = toBdtNumber(String(form.get("price") ?? ""));
     const salePrice = toBdtNumber(form.get("salePrice") ? String(form.get("salePrice")) : null);
     const stock = Number(form.get("stock") || 0);
     const images = imageDetails.map((i) => i.url);
+    const productTypeValue = productType;
+    const variationsPayload = productTypeValue === "VARIABLE" ? cleanVariations : undefined;
+    const attributesPayload = productTypeValue === "VARIABLE" ? cleanAttributes : undefined;
     const payload = {
       categoryId: String(form.get("categoryId")),
       name,
@@ -963,14 +1204,16 @@ function AdminProducts({ token }: { token: string }) {
       stock,
       images,
       imageDetails,
-      variants: cleanVariants,
-      variationImages,
+      sku: sku.trim() || undefined,
+      productType: productTypeValue,
+      attributes: attributesPayload,
+      variations: variationsPayload,
     };
     try {
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
       const method = editingProduct ? "PATCH" : "POST";
       const body = editingProduct
-        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, images, imageDetails, variants: cleanVariants, variationImages }
+        ? { name, description: descriptionText, longDescription: longDescriptionText, price, salePrice, stock, images, imageDetails, sku: sku.trim() || undefined, productType: productTypeValue, attributes: attributesPayload, variations: variationsPayload }
         : payload;
       const response = await api(url, token, { method, body: JSON.stringify(body) });
       const data = await response.json();
@@ -1120,69 +1363,445 @@ function AdminProducts({ token }: { token: string }) {
               )}
             </div>
 
-            {/* Variations */}
+            {/* Product Type & Variations */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Variations <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(e.g. Color, Size — pick an image per value)</span></span>
-                <button
-                  type="button"
-                  onClick={addVariant}
-                  className="text-xs flex items-center gap-1 px-3 h-7 rounded-lg bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
-                >
-                  <FiPlus size={13} /> Add Attribute
-                </button>
+                <span className="text-sm font-semibold text-gray-700 dark:text-slate-200">Product Type & Variations</span>
               </div>
 
-              {variants.length === 0 ? (
-                <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
-                  No variations yet. Add attributes like Color or Size so customers can choose — each value can show its own image.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {variants.map((v, vIndex) => (
-                    <div key={v.id} className="border border-gray-100 dark:border-white/8 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          value={v.name}
-                          onChange={(e) => updateVariantName(vIndex, e.target.value)}
-                          placeholder="Attribute name (e.g. Color)"
-                          className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
-                        />
-                        <button type="button" onClick={() => removeVariant(vIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove attribute">
-                          <FiTrash2 size={13} />
-                        </button>
-                      </div>
-                      <div className="space-y-1.5">
-                        {v.values.map((val, valIndex) => (
-                          <div key={val.id} className="flex items-center gap-2">
-                            <input
-                              value={val.value}
-                              onChange={(e) => updateValueText(vIndex, valIndex, e.target.value)}
-                              placeholder="Value (e.g. Black)"
-                              className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
-                            />
-                            <select
-                              value={val.image ?? ""}
-                              onChange={(e) => setValueImage(vIndex, valIndex, e.target.value)}
-                              className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-slate-200 max-w-[160px]"
-                              title="Pick image for this variation"
-                            >
-                              <option value="">No image</option>
-                              {gallery.map((g, gi) => (
-                                <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+              {/* Type + SKU */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setProductType("SIMPLE")}
+                    className={`flex-1 text-xs flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl border font-semibold transition-colors ${
+                      productType === "SIMPLE"
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-white/10 hover:border-primary/30"
+                    }`}
+                  >
+                    <FiTag size={13} /> Simple Product
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProductType("VARIABLE")}
+                    className={`flex-1 text-xs flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl border font-semibold transition-colors ${
+                      productType === "VARIABLE"
+                        ? "bg-primary/10 text-primary border-primary/30"
+                        : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-slate-400 border-gray-200 dark:border-white/10 hover:border-primary/30"
+                    }`}
+                  >
+                    <FiLayers size={13} /> Variable Product
+                  </button>
+                </div>
+                <input
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="Product SKU (e.g. SHIRT-01) — basis for generated variation SKUs"
+                  className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 h-9 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                />
+              </div>
+
+              {productType === "VARIABLE" && (
+                <div className="space-y-4">
+                  {/* Attributes */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-500 dark:text-slate-400">Product Attributes <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal">(Color, Size, Material…)</span></span>
+                      <button
+                        type="button"
+                        onClick={addAttribute}
+                        className="text-xs flex items-center gap-1 px-3 h-7 rounded-lg bg-primary/10 text-primary font-semibold hover:bg-primary/20 transition-colors"
+                      >
+                        <FiPlus size={13} /> Add Attribute
+                      </button>
+                    </div>
+
+                    {attributes.length === 0 ? (
+                      <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
+                        Add attributes like Color and Size, fill in their values, then press “Generate Variations”.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {attributes.map((attr, aIndex) => (
+                          <div key={attr.id} className="border border-gray-100 dark:border-white/8 rounded-xl p-3 bg-white/40 dark:bg-transparent">
+                            <div className="flex items-center gap-2 mb-2">
+                              <input
+                                value={attr.name}
+                                onChange={(e) => updateAttributeName(aIndex, e.target.value)}
+                                placeholder="Attribute name (e.g. Color)"
+                                className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                              />
+                              <button type="button" onClick={() => removeAttribute(aIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove attribute">
+                                <FiTrash2 size={13} />
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              {attr.values.map((val, valIndex) => (
+                                <div key={val.id} className="flex items-center gap-2">
+                                  {val.colorSwatch ? (
+                                    <span className="shrink-0 w-4 h-4 rounded-md border border-black/10 dark:border-white/20" style={{ background: val.colorSwatch }} title={val.colorSwatch} />
+                                  ) : null}
+                                  <input
+                                    value={val.value}
+                                    onChange={(e) => updateAttributeValue(aIndex, valIndex, { value: e.target.value })}
+                                    placeholder="Value (e.g. Black)"
+                                    className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                  />
+                                  <input
+                                    value={val.colorSwatch ?? ""}
+                                    onChange={(e) => updateAttributeValue(aIndex, valIndex, { colorSwatch: e.target.value })}
+                                    placeholder="#hex"
+                                    className="w-20 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                    title="Hex color swatch (optional)"
+                                  />
+                                  <select
+                                    value={val.image ?? ""}
+                                    onChange={(e) => updateAttributeValue(aIndex, valIndex, { image: e.target.value || null })}
+                                    className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1.5 outline-none text-gray-700 dark:text-slate-200 max-w-[130px]"
+                                    title="Image for this value (shown to customers)"
+                                  >
+                                    <option value="">No image</option>
+                                    {gallery.map((g, gi) => (
+                                      <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                    ))}
+                                  </select>
+                                  <button type="button" onClick={() => removeAttributeValue(aIndex, valIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
+                                    <FiTrash2 size={13} />
+                                  </button>
+                                </div>
                               ))}
-                            </select>
-                            <button type="button" onClick={() => removeValue(vIndex, valIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
-                              <FiTrash2 size={13} />
+                            </div>
+                            <button type="button" onClick={() => addAttributeValue(aIndex)} className="mt-2 text-xs flex items-center gap-1 px-2.5 h-6 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:text-primary transition-colors">
+                              <FiPlus size={12} /> Add value
                             </button>
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={() => addValue(vIndex)} className="mt-2 text-xs flex items-center gap-1 px-2.5 h-6 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:text-primary transition-colors">
-                        <FiPlus size={12} /> Add value
-                      </button>
+                    )}
+                  </div>
+
+                  {/* Generate */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={generateVariationsFromAttributes}
+                      disabled={generating}
+                      className="px-4 h-9 rounded-xl bg-gradient-to-r from-primary to-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50"
+                    >
+                      <FiShuffle size={13} className={generating ? "animate-spin" : ""} /> {generating ? "Generating…" : "Generate Variations"}
+                    </button>
+                    {variations.length > 0 && (
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
+                        {variations.length} variation{variations.length > 1 ? "s" : ""} — edits below are saved with the product
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Variations grid */}
+                  {variations.length > 0 && (
+                    <div>
+                      {/* Bulk toolbar */}
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedVars.size === variations.length && variations.length > 0}
+                            onChange={(e) => toggleSelectAllVars(e.target.checked)}
+                            className="accent-primary"
+                          />
+                          <span className="text-xs text-gray-500 dark:text-slate-400">{selectedVars.size ? `${selectedVars.size} selected` : "Select all"}</span>
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const price = window.prompt("Set price (BDT) for selected variations");
+                              if (price !== null) bulkApply("setPrice", Number(price));
+                            }}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                          >
+                            Set price
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const sale = window.prompt("Set sale price (BDT) for selected variations (blank to clear)");
+                              if (sale !== null) bulkApply("setSalePrice", sale ? Number(sale) : undefined);
+                            }}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                          >
+                            Set sale
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const stock = window.prompt("Set stock qty for selected variations");
+                              if (stock !== null) bulkApply("setStock", Number(stock));
+                            }}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 font-semibold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                          >
+                            Set stock
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => bulkApply("enable")}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                          >
+                            Enable
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => bulkApply("disable")}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-amber-100/70 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                          >
+                            Disable
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!selectedVars.size) return toast.error("Select at least one variation first");
+                              if (!window.confirm(`Delete ${selectedVars.size} selected variation${selectedVars.size > 1 ? "s" : ""}?`)) return;
+                              bulkApply("delete");
+                              toast.success("Variations deleted");
+                            }}
+                            className="text-[11px] px-2.5 h-7 rounded-lg bg-rose-100/70 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="border border-gray-100 dark:border-white/8 rounded-xl overflow-hidden">
+                        {variations.map((v, vi) => {
+                          const expanded = expandedVar === v.id;
+                          return (
+                            <div key={v.id} className={vi > 0 ? "border-t border-gray-100 dark:border-white/8" : ""}>
+                              <div className={`flex items-center gap-2 px-3 py-2 ${expanded ? "bg-primary/5 dark:bg-primary/10" : "hover:bg-gray-50 dark:hover:bg-white/5"} transition-colors`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedVars.has(v.id)}
+                                  onChange={() => toggleSelectVar(v.id)}
+                                  className="accent-primary"
+                                />
+                                <button type="button" onClick={() => setExpandedVar(expanded ? null : v.id)} className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Expand edit">
+                                  <FiChevronDown size={14} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-xs font-semibold text-gray-700 dark:text-slate-200 truncate">{v.name || "Variation"}</span>
+                                    {v.attributes
+                                      .map((a) => {
+                                        const attr = attributes.find((x) => x.id === a.attributeId);
+                                        const val = attr?.values.find((x) => x.id === a.valueId);
+                                        return val ? `${attr?.name ?? "?"}: ${val.value}` : null;
+                                      })
+                                      .filter(Boolean)
+                                      .map((chip, i) => (
+                                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-slate-400">{chip}</span>
+                                      ))}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                    <span className="text-[10px] text-gray-400 dark:text-slate-500">{v.sku || "— SKU —"}</span>
+                                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300">৳ {Number(v.price ?? 0).toLocaleString("en-BD")}</span>
+                                    {v.salePrice ? (
+                                      <span className="text-[10px] text-rose-500 line-through">৳ {Number(v.salePrice).toLocaleString("en-BD")}</span>
+                                    ) : null}
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${Number(v.stock) > 0 ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-rose-100/70 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400"}`}>
+                                      {Number(v.stock) > 0 ? `${v.stock} in stock` : v.manageStock ? "Out of stock" : "Stock not managed"}
+                                    </span>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${v.status === "active" ? "bg-emerald-100/70 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-100/70 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
+                                      {v.status}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setDefaultVariationId(v.id);
+                                        updateVariation(v.id, { isDefault: true });
+                                        setVariations((cur) => cur.map((x) => ({ ...x, isDefault: x.id === v.id })));
+                                        toast.success("Default variation set");
+                                      }}
+                                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-colors ${v.isDefault || defaultVariationId === v.id ? "bg-indigo-100/70 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-slate-500 hover:text-indigo-500"}`}
+                                      title="Set as default (pre-selected on product page)"
+                                    >
+                                      {v.isDefault || defaultVariationId === v.id ? "★ Default" : "☆ Default"}
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                  <button type="button" onClick={() => duplicateVariation(v.id)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Duplicate variation">
+                                    <FiCopy size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (!window.confirm(`Delete variation “${v.name || "(unnamed)"}”?`)) return;
+                                      removeVariation(v.id);
+                                      toast.success("Variation deleted");
+                                    }}
+                                    className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
+                                    title="Delete variation"
+                                  >
+                                    <FiTrash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {expanded && (
+                                <div className="px-4 py-3 bg-gray-50/70 dark:bg-white/2 border-t border-gray-100 dark:border-white/8 space-y-2.5">
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div className="sm:col-span-3">
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Variation name</label>
+                                      <input
+                                        value={v.name}
+                                        onChange={(e) => updateVariation(v.id, { name: e.target.value })}
+                                        placeholder="e.g. Black / M"
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">SKU (unique)</label>
+                                      <input
+                                        value={v.sku ?? ""}
+                                        onChange={(e) => updateVariation(v.id, { sku: e.target.value })}
+                                        placeholder="Auto if blank"
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Price (BDT)</label>
+                                      <input
+                                        value={v.price}
+                                        onChange={(e) => updateVariation(v.id, { price: e.target.value })}
+                                        placeholder="0"
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Sale price (BDT — blank = none)</label>
+                                      <input
+                                        value={v.salePrice ?? ""}
+                                        onChange={(e) => updateVariation(v.id, { salePrice: e.target.value ? e.target.value : null })}
+                                        placeholder="Optional"
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Weight (kg)</label>
+                                      <input
+                                        value={v.weight ?? ""}
+                                        onChange={(e) => updateVariation(v.id, { weight: e.target.value })}
+                                        placeholder="Optional"
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Status</label>
+                                      <select
+                                        value={v.status}
+                                        onChange={(e) => updateVariation(v.id, { status: e.target.value as "active" | "disabled" })}
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200"
+                                      >
+                                        <option value="active">Active</option>
+                                        <option value="disabled">Disabled</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Stock</label>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        value={v.stock}
+                                        onChange={(e) => updateVariation(v.id, { stock: Number(e.target.value) })}
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                      />
+                                    </div>
+                                    <div className="flex items-end gap-2 pb-1">
+                                      <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600 dark:text-slate-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={v.manageStock}
+                                          onChange={(e) => updateVariation(v.id, { manageStock: e.target.checked })}
+                                          className="accent-primary"
+                                        />
+                                        Manage stock
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Variation image</label>
+                                      <select
+                                        value={v.image ?? ""}
+                                        onChange={(e) => updateVariation(v.id, { image: e.target.value || null })}
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200"
+                                      >
+                                        <option value="">Product image</option>
+                                        {gallery.map((g, gi) => (
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Variation gallery (extra)</label>
+                                      <select
+                                        value=""
+                                        onChange={(e) => {
+                                          const url = e.target.value;
+                                          if (!url) return;
+                                          const current = v.gallery ?? [];
+                                          if (!current.includes(url)) updateVariation(v.id, { gallery: [...current, url] });
+                                          e.target.value = "";
+                                        }}
+                                        className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200"
+                                      >
+                                        <option value="">Add gallery image…</option>
+                                        {gallery.map((g, gi) => (
+                                          <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
+                                        ))}
+                                      </select>
+                                      {v.gallery && v.gallery.length > 0 && (
+                                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                          {v.gallery.map((url, gi) => (
+                                            <span key={gi} className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-slate-400">
+                                              <img src={url} alt="" className="w-4 h-4 rounded object-cover" />
+                                              {gi + 1}
+                                              <button type="button" onClick={() => updateVariation(v.id, { gallery: v.gallery!.filter((_, i) => i !== gi) })} className="text-gray-400 hover:text-rose-500">
+                                                <FiX size={10} />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-gray-400 dark:text-slate-500 mb-1 block">Variation description</label>
+                                    <input
+                                      value={v.description ?? ""}
+                                      onChange={(e) => updateVariation(v.id, { description: e.target.value })}
+                                      placeholder="Optional variation-specific details"
+                                      className="w-full text-xs bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {variations.length === 0 && (
+                    <p className="text-xs text-gray-400 dark:text-slate-500 border border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 text-center">
+                      <FiBox size={14} className="inline mb-0.5 mr-1" />
+                      No variations yet — add attributes above and tap “Generate Variations”.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
