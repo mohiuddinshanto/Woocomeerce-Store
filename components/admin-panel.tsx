@@ -300,10 +300,10 @@ export function AdminPanel() {
           </div>
           <button
             onClick={() => setMobileSidebar(false)}
-            className="lg:hidden w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"
+            className="icon-square-btn lg:hidden w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5"
             aria-label="Close menu"
           >
-            <FiX />
+            <FiX size={16} />
           </button>
         </div>
 
@@ -352,10 +352,10 @@ export function AdminPanel() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileSidebar(true)}
-              className="lg:hidden w-9 h-9 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 dark:border-white/8 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5"
+              className="icon-square-btn lg:hidden w-9 h-9 shrink-0 flex items-center justify-center rounded-xl border border-gray-200 dark:border-white/8 text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5"
               aria-label="Open menu"
             >
-              <FiMenu />
+              <FiMenu size={16} />
             </button>
             <div className="min-w-0">
               <h1 className="font-display font-bold text-base sm:text-lg text-gray-900 dark:text-white capitalize truncate">{title(section)}</h1>
@@ -713,11 +713,11 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
           <span className="rounded bg-primary/10 px-2 py-1 text-[0.7rem] font-semibold text-primary">Category</span>
         )}
         <div className="flex items-center gap-0.5">
-          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">→</button>
-          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">←</button>
-          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↑</button>
-          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↓</button>
-          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">×</button>
+          <button type="button" title="Indent (sub)" onClick={() => indent(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">→</button>
+          <button type="button" title="Outdent" onClick={() => indent(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">←</button>
+          <button type="button" title="Move up" onClick={() => move(n.id, -1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↑</button>
+          <button type="button" title="Move down" onClick={() => move(n.id, 1)} className="icon-square-btn w-7 h-7 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-primary/10 hover:text-primary text-xs font-bold">↓</button>
+          <button type="button" title="Delete" onClick={() => removeItem(n.id)} className="icon-square-btn w-7 h-7 rounded-md bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white text-xs font-bold">×</button>
         </div>
       </div>
       {n.children.length > 0 && <ul className="mt-1 space-y-1">{n.children.map((c) => renderItem(c, depth + 1))}</ul>}
@@ -1340,18 +1340,18 @@ function AdminProducts({ token }: { token: string }) {
                         />
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-0.5">
-                            <button type="button" onClick={() => setFeatured(index)} title="Set featured" className={`w-6 h-6 rounded-md flex items-center justify-center text-xs ${img.isFeatured ? "text-amber" : "text-gray-300 dark:text-slate-600 hover:text-amber"}`}>
+                            <button type="button" onClick={() => setFeatured(index)} title="Set featured" className={`icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-xs ${img.isFeatured ? "text-amber" : "text-gray-300 dark:text-slate-600 hover:text-amber"}`}>
                               <FiStar size={14} />
                             </button>
-                            <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move up">
+                            <button type="button" onClick={() => moveImage(index, -1)} disabled={index === 0} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move up">
                               <FiArrowUp size={13} />
                             </button>
-                            <button type="button" onClick={() => moveImage(index, 1)} disabled={index === gallery.length - 1} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move down">
+                            <button type="button" onClick={() => moveImage(index, 1)} disabled={index === gallery.length - 1} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-30" title="Move down">
                               <FiArrowDown size={13} />
                             </button>
                           </div>
                           <div className="flex items-center gap-1">
-                            <button type="button" onClick={() => removeImage(index)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Delete">
+                            <button type="button" onClick={() => removeImage(index)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Delete">
                               <FiTrash2 size={13} />
                             </button>
                           </div>
@@ -1433,7 +1433,7 @@ function AdminProducts({ token }: { token: string }) {
                                 placeholder="Attribute name (e.g. Color)"
                                 className="flex-1 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 outline-none text-gray-700 dark:text-slate-200 placeholder-gray-400"
                               />
-                              <button type="button" onClick={() => removeAttribute(aIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove attribute">
+                              <button type="button" onClick={() => removeAttribute(aIndex)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove attribute">
                                 <FiTrash2 size={13} />
                               </button>
                             </div>
@@ -1467,7 +1467,7 @@ function AdminProducts({ token }: { token: string }) {
                                       <option key={gi} value={g.url}>{`Image ${gi + 1}${g.altText ? ` — ${g.altText}` : ""}`}</option>
                                     ))}
                                   </select>
-                                  <button type="button" onClick={() => removeAttributeValue(aIndex, valIndex)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
+                                  <button type="button" onClick={() => removeAttributeValue(aIndex, valIndex)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-300 dark:text-slate-600 hover:text-rose-500" title="Remove value">
                                     <FiTrash2 size={13} />
                                   </button>
                                 </div>
@@ -1585,7 +1585,7 @@ function AdminProducts({ token }: { token: string }) {
                                   onChange={() => toggleSelectVar(v.id)}
                                   className="accent-primary"
                                 />
-                                <button type="button" onClick={() => setExpandedVar(expanded ? null : v.id)} className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Expand edit">
+                                <button type="button" onClick={() => setExpandedVar(expanded ? null : v.id)} className="shrink-0 icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Expand edit">
                                   <FiChevronDown size={14} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
                                 </button>
                                 <div className="flex-1 min-w-0">
@@ -1630,7 +1630,7 @@ function AdminProducts({ token }: { token: string }) {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-0.5 shrink-0">
-                                  <button type="button" onClick={() => duplicateVariation(v.id)} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Duplicate variation">
+                                  <button type="button" onClick={() => duplicateVariation(v.id)} className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-primary transition-colors" title="Duplicate variation">
                                     <FiCopy size={13} />
                                   </button>
                                   <button
@@ -1640,7 +1640,7 @@ function AdminProducts({ token }: { token: string }) {
                                       removeVariation(v.id);
                                       toast.success("Variation deleted");
                                     }}
-                                    className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
+                                    className="icon-square-btn w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors"
                                     title="Delete variation"
                                   >
                                     <FiTrash2 size={13} />
@@ -1865,16 +1865,16 @@ function AdminProducts({ token }: { token: string }) {
                       <div className="flex items-center gap-1 justify-end">
                         <button
                           onClick={() => startEdit(p)}
-                          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
+                          className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
                           title="Edit product"
                         >
-                          <FiEdit2 />
+                          <FiEdit2 size={14} />
                         </button>
                         <button
                           onClick={() => deleteProduct(p)}
-                          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
+                          className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
                         >
-                          <FiTrash2 />
+                          <FiTrash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -2044,7 +2044,7 @@ function AdminCategories({ token }: { token: string }) {
                   )}
                   <button
                     onClick={() => deleteCategory(cat.id)}
-                    className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
+                    className="icon-square-btn w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
                   >
                     <FiTrash2 />
                   </button>
@@ -2058,7 +2058,7 @@ function AdminCategories({ token }: { token: string }) {
                         <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug}</p>
                         <button
                           onClick={() => deleteCategory(sub.id)}
-                          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
+                          className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
                         >
                           <FiTrash2 />
                         </button>
@@ -2509,7 +2509,7 @@ function AdminCoupons({ token }: { token: string }) {
             </div>
             <button
               onClick={() => deleteCoupon(c.id)}
-              className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
+              className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
             >
               <FiTrash2 />
             </button>
@@ -2666,7 +2666,7 @@ function AdminStaff({ token }: { token: string }) {
             </div>
             <button
               onClick={() => removeStaff(s.id)}
-              className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
+              className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
             >
               <FiTrash2 />
             </button>

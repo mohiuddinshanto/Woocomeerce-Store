@@ -96,8 +96,8 @@ body {
 
 @layer base {
 /* Universal Button System for legacy app buttons (HeroUI components excluded) */
-button:not(:is([data-slot] *)),
-button[data-slot="button"]:not(:is([data-slot] *)) {
+button:not(:is([data-slot] *)):not(.icon-btn):not(.icon-square-btn),
+button[data-slot="button"]:not(:is([data-slot] *)):not(.icon-btn):not(.icon-square-btn) {
   font-family: var(--store-font) !important;
   font-weight: 700 !important;
   font-size: 0.92rem;
