@@ -1290,22 +1290,22 @@ function AdminProducts({ token }: { token: string }) {
               <button type="button" onClick={() => { setEditingProduct(null); setCreating(false); }} className="text-xs text-primary underline ml-2">cancel</button>
             </div>
           )}
-          <form onSubmit={saveProduct} className="space-y-5">
+          <form key={editingProduct?.id ?? "new"} onSubmit={saveProduct} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" />
-              <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" />
-              <Select label="Category" name="categoryId" isRequired placeholder="Select a category">
+              <Input label="Product Name" name="name" isRequired placeholder="Classic Cotton Shirt" defaultValue={editingProduct?.name ?? ""} />
+              <Input label="Slug (Leave empty to auto-generate)" name="slug" placeholder="classic-cotton-shirt" defaultValue={editingProduct?.slug ?? ""} />
+              <Select label="Category" name="categoryId" isRequired placeholder="Select a category" defaultSelectedKeys={editingProduct?.categoryId ? [editingProduct.categoryId] : []}>
                 {categoryOptions(categories).map((category) => (
                   <SelectItem key={category.id}>{category.parentId ? `↳  ${category.name}` : category.name}</SelectItem>
                 ))}
               </Select>
-              <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" />
-              <Input label="Sale Price (BDT)" name="salePrice" type="text" inputMode="decimal" placeholder="1200 (Optional)" />
-              <Input label="Initial Stock Qty" name="stock" type="number" defaultValue="10" />
+              <Input label="Regular Price (BDT)" name="price" type="text" inputMode="decimal" isRequired placeholder="1500" defaultValue={editingProduct ? String(editingProduct.price) : ""} />
+              <Input label="Sale Price (BDT)" name="salePrice" type="text" inputMode="decimal" placeholder="1200 (Optional)" defaultValue={editingProduct?.salePrice != null ? String(editingProduct.salePrice) : ""} />
+              <Input label="Initial Stock Qty" name="stock" type="number" defaultValue={String(editingProduct?.stock ?? 10)} />
             </div>
 
-            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" />
-            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" />
+            <Textarea label="Short Description" name="description" isRequired minRows={3} placeholder="One or two crisp sentences for cards, search and quick glance…" defaultValue={editingProduct?.description ?? ""} />
+            <Textarea label="Long Description (Full Details)" name="longDescription" minRows={5} placeholder="Extended description for the product page — materials, care, shipping, what's in the box…" defaultValue={editingProduct?.longDescription ?? ""} />
 
             <div>
               <div className="flex items-center justify-between mb-2">
