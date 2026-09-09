@@ -41,6 +41,7 @@ type Config = {
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
   chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
   homePageConfig?: { sections: HomeSectionDef[] };
+  heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
 };
 
@@ -55,6 +56,20 @@ type HomeSectionDef = {
   pagination: boolean;
   loop: boolean;
   showViewAll: boolean;
+};
+
+type HeroBannerConfig = {
+  enabled?: boolean;
+  image?: string | null;
+  badge?: string | null;
+  title?: string | null;
+  accent?: string | null;
+  subtitle?: string | null;
+  buttonLabel?: string | null;
+  buttonLink?: string | null;
+  secondaryLabel?: string | null;
+  secondaryLink?: string | null;
+  announceText?: string | null;
 };
 
 type ProductImageDetail = {
@@ -163,7 +178,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400";
 
-type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";
+type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "◈" },
@@ -174,6 +189,7 @@ const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "reviews", label: "Reviews", icon: "★" },
   { key: "staff", label: "Staff Team", icon: "◉" },
   { key: "home", label: "Home Layout", icon: "⌂" },
+  { key: "banner", label: "Hero Banner", icon: "▰" },
   { key: "menu", label: "Menu Builder", icon: "☰" },
   { key: "marketing", label: "Pixels & Chat", icon: "⬡" },
   { key: "features", label: "Store Features", icon: "⊕" },
@@ -393,6 +409,7 @@ export function AdminPanel() {
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
           {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
+          {section === "banner" && <BannerSettings config={config} save={save} saving={saving} token={token} />}
           {section === "menu" && <MenuBuilder config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
           {section === "features" && <FeatureSettings config={config} save={save} saving={saving} />}
@@ -3002,6 +3019,133 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
       <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
         {saving ? "Saving…" : "Save Payment Settings"}
       </button>
+    </form>
+  );
+}
+
+/* ==================== HERO BANNER ==================== */
+function BannerSettings({ save, saving, config, token }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config; token: string }) {
+  const current = config.heroBannerConfig ?? {};
+  const [enabled, setEnabled] = useState(current.enabled !== false);
+  const [imageInput, setImageInput] = useState<string>(current.image ?? "");
+  const [imagePreview, setImagePreview] = useState(current.image ?? "");
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setImagePreview(data.url);
+      setImageInput(data.url);
+      toast.success("Banner image uploaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const f = new FormData(event.currentTarget);
+    const str = (key: string) => {
+      const v = String(f.get(key) ?? "").trim();
+      return v || null;
+    };
+    save({
+      heroBannerConfig: {
+        enabled,
+        image: imageInput || null,
+        badge: str("badge"),
+        title: str("title"),
+        accent: str("accent"),
+        subtitle: str("subtitle"),
+        buttonLabel: str("buttonLabel"),
+        buttonLink: str("buttonLink"),
+        secondaryLabel: str("secondaryLabel"),
+        secondaryLink: str("secondaryLink"),
+        announceText: str("announceText"),
+      },
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-6 max-w-3xl">
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Show hero banner</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Turn the home page hero banner on or off on the storefront.</p>
+          </div>
+          <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
+        </div>
+
+        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-2">Banner image</p>
+        <div className="flex items-start gap-4">
+          {imagePreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imagePreview} alt="Banner preview" className="h-32 w-56 object-cover rounded-xl border border-gray-100 dark:border-white/6" />
+          ) : (
+            <div className="grid h-32 w-56 place-items-center rounded-xl border border-dashed border-gray-200 dark:border-white/10 text-xs text-gray-400">No image — falls back to a product photo</div>
+          )}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 px-4 h-10 bg-gray-900 dark:bg-white/10 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
+              <FiBox size={14} />
+              {uploading ? "Uploading…" : "Upload Banner Image"}
+              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </label>
+            {imagePreview && (
+              <button type="button" onClick={() => { setImagePreview(""); setImageInput(""); }} className="px-3 h-8 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
+                Remove image
+              </button>
+            )}
+            <p className="text-[0.65rem] leading-relaxed text-gray-400 dark:text-slate-500 max-w-[220px]">
+              Suggested ratio ~16:7 (wide). Fallback: first product photo.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-4">Headline & copy</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Badge" name="badge" placeholder='e.g. ঈদ ও উৎসব কালেকশন ২০২৬' defaultValue={current.badge ?? ""} />
+          <Input label="Title (first line)" name="title" placeholder="Objects for" defaultValue={current.title ?? ""} />
+          <Input className="sm:col-span-2" label="Title (accent line)" name="accent" placeholder="a softer daily life." defaultValue={current.accent ?? ""} />
+          <Textarea className="sm:col-span-2" label="Subtitle" name="subtitle" minRows={2} placeholder="Thoughtfully curated premium pieces…" defaultValue={current.subtitle ?? ""} />
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-4">Buttons</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Primary button text" name="buttonLabel" placeholder="Explore Collection" defaultValue={current.buttonLabel ?? ""} />
+          <Input label="Primary button link" name="buttonLink" placeholder="#shop or /products/slug or https://…" defaultValue={current.buttonLink ?? ""} />
+          <Input label="Secondary button text" name="secondaryLabel" placeholder="Shop by Category" defaultValue={current.secondaryLabel ?? ""} />
+          <Input label="Secondary button link" name="secondaryLink" placeholder="#categories or /categories/slug" defaultValue={current.secondaryLink ?? ""} />
+        </div>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-3">Links starting with <b>#</b> scroll to that section on the page. Anything else is opened as a page link.</p>
+      </div>
+
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Top announcement bar</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Shown above the header. Leave empty to hide the bar.</p>
+        <Input label="Announcement text" name="announceText" placeholder="e.g. ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ফ্রি ডেলিভারি" defaultValue={current.announceText ?? ""} />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
+          {saving ? "Saving…" : "Save Hero Banner"}
+        </button>
+        {enabled === false && <span className="text-xs text-gray-400">Hero banner is currently hidden on the storefront.</span>}
+      </div>
     </form>
   );
 }

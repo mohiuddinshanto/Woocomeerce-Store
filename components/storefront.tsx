@@ -94,7 +94,82 @@ type HomeSection = {
 
 type HomePageConfig = { sections: HomeSection[] };
 
+type HeroBannerConfig = {
+  enabled?: boolean;
+  image?: string | null;
+  badge?: string | null;
+  title?: string | null;
+  accent?: string | null;
+  subtitle?: string | null;
+  buttonLabel?: string | null;
+  buttonLink?: string | null;
+  secondaryLabel?: string | null;
+  secondaryLink?: string | null;
+  announceText?: string | null;
+};
+
+const DEFAULT_HERO: Required<Pick<HeroBannerConfig, "badge" | "title" | "accent" | "subtitle" | "buttonLabel" | "buttonLink" | "secondaryLabel" | "secondaryLink" | "announceText">> = {
+  badge: "ঈদ ও উৎসব কালেকশন ২০২৬",
+  title: "Objects for",
+  accent: "a softer daily life.",
+  subtitle:
+    "Thoughtfully curated premium pieces designed to work beautifully every single day — from Dhaka to Dhaka, delivered everywhere in between.",
+  buttonLabel: "Explore Collection",
+  buttonLink: "#shop",
+  secondaryLabel: "Shop by Category",
+  secondaryLink: "#categories",
+  announceText: "ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ঢাকা ও চট্টগ্রামে ফ্রি এক্সপ্রেস ডেলিভারি",
+};
+
 const money = (v: number | string) => `৳ ${Number(v).toLocaleString("en-BD")}`;
+
+const scrollToId = (link: string) => {
+  const id = link.replace(/^#/, "");
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+};
+
+function HeroCta({ label, link, secondary }: { label: string | null; link: string | null; secondary?: boolean }) {
+  const text = label || (secondary ? "Shop by Category" : "Explore Collection");
+  const href = link || (secondary ? "#categories" : "#shop");
+  const content = secondary ? (
+    <span className="inline-flex items-center gap-2">
+      <FiLayers /> {text}
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-2">
+      {text} <FiArrowRight className="ml-1 inline" />
+    </span>
+  );
+  if (href.startsWith("#")) {
+    return secondary ? (
+      <button
+        className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
+        onClick={() => scrollToId(href)}
+      >
+        {content}
+      </button>
+    ) : (
+      <Button
+        color="primary"
+        radius="full"
+        size="lg"
+        className="px-8 font-bold shadow-lg shadow-indigo-500/20"
+        onPress={() => scrollToId(href)}
+      >
+        {content}
+      </Button>
+    );
+  }
+  const isExternal = /^https?:/.test(href);
+  const cls = secondary
+    ? "inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
+    : "inline-flex items-center gap-2 rounded-full bg-primary px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:bg-primary-dark";
+  return (
+    <Link href={href} target={isExternal ? "_blank" : undefined} className={cls}>
+      {content}
+    </Link>
+  );
+}
 
 const FALLBACK_IMG =
   "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1000&q=85";
@@ -120,6 +195,7 @@ export function Storefront() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(null);
+  const [bannerConfig, setBannerConfig] = useState<HeroBannerConfig | null>(null);
   const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
   const [allowAddToCart, setAllowAddToCart] = useState(true);
 
@@ -134,6 +210,7 @@ export function Storefront() {
         if (Array.isArray(c)) setCategories(c);
         if (status?.config?.chatConfig) setChatConfig(status.config.chatConfig);
         if (status?.config?.homePageConfig) setHomeConfig(status.config.homePageConfig);
+        if (status?.config?.heroBannerConfig) setBannerConfig(status.config.heroBannerConfig);
         if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
         setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
       })
@@ -243,6 +320,23 @@ export function Storefront() {
       products[0]?.images[0] ??
       FALLBACK_IMG,
     [products]
+  );
+
+  const hero = useMemo(
+    () => ({
+      enabled: bannerConfig?.enabled !== false,
+      image: bannerConfig?.image || heroImage,
+      badge: bannerConfig?.badge ?? DEFAULT_HERO.badge,
+      title: bannerConfig?.title ?? DEFAULT_HERO.title,
+      accent: bannerConfig?.accent ?? DEFAULT_HERO.accent,
+      subtitle: bannerConfig?.subtitle ?? DEFAULT_HERO.subtitle,
+      buttonLabel: bannerConfig?.buttonLabel ?? DEFAULT_HERO.buttonLabel,
+      buttonLink: bannerConfig?.buttonLink ?? DEFAULT_HERO.buttonLink,
+      secondaryLabel: bannerConfig?.secondaryLabel ?? DEFAULT_HERO.secondaryLabel,
+      secondaryLink: bannerConfig?.secondaryLink ?? DEFAULT_HERO.secondaryLink,
+      announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
+    }),
+    [bannerConfig, heroImage]
   );
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -363,21 +457,23 @@ export function Storefront() {
   return (
     <main>
       {/* Top Announcement Bar */}
-      <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-          Festive Drop 2026
-        </span>
-        <span className="text-[0.8rem] font-medium text-slate-500">
-          ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ঢাকা ও চট্টগ্রামে ফ্রি এক্সপ্রেস ডেলিভারি
-        </span>
-        <Link
-          href="#shop"
-          className="inline-flex items-center gap-1 text-[0.8rem] font-bold text-primary hover:underline"
-        >
-          Explore Drops <FiArrowRight size={13} />
-        </Link>
-      </aside>
+      {hero.announceText && (
+        <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+            Festive Drop 2026
+          </span>
+          <span className="text-[0.8rem] font-medium text-slate-500">
+            {hero.announceText}
+          </span>
+          <Link
+            href="#shop"
+            className="inline-flex items-center gap-1 text-[0.8rem] font-bold text-primary hover:underline"
+          >
+            Explore Drops <FiArrowRight size={13} />
+          </Link>
+        </aside>
+      )}
 
       {/* Site Header */}
       <nav className="site-nav">
@@ -496,72 +592,56 @@ export function Storefront() {
       )}
 
       {/* Hero Banner */}
-      <section className="relative border-b border-slate-100 bg-slate-50">
-        <div className="mx-auto max-w-[1400px] px-[6vw] py-6 lg:py-10">
-          <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5">
-            <div className="relative flex min-h-[380px] items-center sm:min-h-[440px] lg:min-h-[480px]">
-              <Image
-                src={heroImage}
-                alt="EPIC curated collection"
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
-              <div className="relative z-10 max-w-2xl space-y-5 p-6 sm:p-10 lg:p-14">
-                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 backdrop-blur-md">
-                  <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
-                  <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
-                    ঈদ ও উৎসব কালেকশন ২০২৬
-                  </span>
-                </div>
-                <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                  Objects for <br />
-                  <span className="gradient-text">a softer daily life.</span>
-                </h1>
-                <p className="max-w-md text-[0.95rem] leading-relaxed text-slate-500">
-                  Thoughtfully curated premium pieces designed to work beautifully every single day —
-                  from Dhaka to Dhaka, delivered everywhere in between.
-                </p>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <Button
-                    color="primary"
-                    radius="full"
-                    size="lg"
-                    className="px-8 font-bold shadow-lg shadow-indigo-500/20"
-                    onPress={() =>
-                      document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })
-                    }
-                  >
-                    Explore Collection <FiArrowRight className="ml-1 inline" />
-                  </Button>
-                  <button
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary"
-                    onClick={() =>
-                      document.getElementById("categories")?.scrollIntoView({ behavior: "smooth" })
-                    }
-                  >
-                    <FiLayers /> Shop by Category
-                  </button>
-                </div>
-              </div>
-
-              <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
-                <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
-                  <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
-                    🔥
+      {hero.enabled && (
+        <section className="relative border-b border-slate-100 bg-slate-50">
+          <div className="mx-auto max-w-[1400px] px-[6vw] py-6 lg:py-10">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5">
+              <div className="relative flex min-h-[380px] items-center sm:min-h-[440px] lg:min-h-[480px]">
+                <Image
+                  src={hero.image}
+                  alt="EPIC curated collection"
+                  fill
+                  priority
+                  sizes="100vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
+                <div className="relative z-10 max-w-2xl space-y-5 p-6 sm:p-10 lg:p-14">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 backdrop-blur-md">
+                    <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
+                    <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+                      {hero.badge}
+                    </span>
                   </div>
-                  <div>
-                    <strong className="block text-sm text-slate-900">Trending Item</strong>
-                    <span className="text-xs text-slate-400">Rated 4.9 ★ by customers</span>
+                  <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                    {hero.title} <br />
+                    <span className="gradient-text">{hero.accent}</span>
+                  </h1>
+                  <p className="max-w-md text-[0.95rem] leading-relaxed text-slate-500">
+                    {hero.subtitle}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <HeroCta label={hero.buttonLabel} link={hero.buttonLink} />
+                    <HeroCta label={hero.secondaryLabel} link={hero.secondaryLink} secondary />
+                  </div>
+                </div>
+
+                <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
+                  <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
+                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
+                      🔥
+                    </div>
+                    <div>
+                      <strong className="block text-sm text-slate-900">Trending Item</strong>
+                      <span className="text-xs text-slate-400">Rated 4.9 ★ by customers</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Trust & Value Propositions */}
       <section className="border-b border-slate-100 bg-white py-6">
