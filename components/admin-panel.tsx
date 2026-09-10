@@ -2,7 +2,7 @@
 
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, Select, SelectItem, Switch, Textarea } from "@heroui/react";
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiX } from "react-icons/fi";
 
@@ -3119,6 +3119,27 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
     }
     return [makeEmptySlide()];
   });
+
+  const latestConfigRef = useRef(config);
+  latestConfigRef.current = config;
+  useEffect(() => {
+    const raw = latestConfigRef.current.heroBannerConfig?.slides;
+    if (raw && raw.length > 0) {
+      setSlides(raw.map((s: any) => ({
+        id: s.id || crypto.randomUUID(),
+        image: s.image ?? "",
+        badge: s.badge ?? "",
+        title: s.title ?? "",
+        accent: s.accent ?? "",
+        subtitle: s.subtitle ?? "",
+        buttonLabel: s.buttonLabel ?? "",
+        buttonLink: s.buttonLink ?? "",
+        secondaryLabel: s.secondaryLabel ?? "",
+        secondaryLink: s.secondaryLink ?? "",
+        uploading: false,
+      })));
+    }
+  }, [config.heroBannerConfig]);
 
   function updateSlide(id: string, patch: Partial<SlideData>) {
     setSlides((old) => old.map((s) => (s.id === id ? { ...s, ...patch } : s)));
