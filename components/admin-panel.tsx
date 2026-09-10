@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -40,7 +40,7 @@ type Config = {
   cooldownMinutes: number;
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
   chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
-  homePageConfig?: { sections: HomeSectionDef[] };
+  homePageConfig?: { sections: HomeSectionDef[]; layout?: "classic" | "catalog" };
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
 };
@@ -212,6 +212,7 @@ export function AdminPanel() {
   const [section, setSection] = useState<Section>("overview");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(tokenKey);
@@ -278,7 +279,12 @@ export function AdminPanel() {
 
           <form onSubmit={login} className="flex flex-col gap-4">
             <Input isRequired name="email" type="email" label="Admin email" placeholder="admin@store.com" />
-            <Input isRequired name="password" type="password" label="Password" placeholder="••••••••" />
+            <Input isRequired name="password" type={showPassword ? "text" : "password"} label="Password" placeholder="••••••••"
+              endContent={
+                <button type="button" aria-label="Toggle password visibility" onClick={() => setShowPassword((v) => !v)} className="cursor-pointer text-gray-400 hover:text-primary transition-colors">
+                  {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                </button>
+              } />
             <Button
               type="submit"
               className="h-11 bg-gradient-to-r from-primary to-indigo-500 text-white font-display font-bold rounded-xl shadow-lg shadow-primary/30 hover:opacity-90 transition-opacity"
@@ -2790,6 +2796,7 @@ type SmallCategory = { id: string; name: string; _count?: { products?: number } 
 
 function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
   const [cats, setCats] = useState<SmallCategory[]>([]);
+  const [layout, setLayout] = useState<"classic" | "catalog">(config.homePageConfig?.layout ?? "classic");
   const [sections, setSections] = useState<HomeSectionDef[]>(
     config.homePageConfig?.sections?.length
       ? config.homePageConfig.sections
@@ -2834,11 +2841,27 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
     for (const s of sections) {
       if (!s.categoryIds.length) return toast.error("Each section needs at least one category");
     }
-    save({ homePageConfig: { sections } });
+    save({ homePageConfig: { layout, sections } });
   }
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">
+          Customers will see this layout whenever they open the home page. You can switch any time.
+        </p>
+        <Select
+          label="Home layout"
+          selectedKeys={[layout]}
+          onSelectionChange={(keys) => setLayout((Array.from(keys as Set<string>)[0] as "classic" | "catalog") ?? "classic")}
+          className="max-w-md"
+        >
+          <SelectItem key="classic">Classic — current minimal design</SelectItem>
+          <SelectItem key="catalog">Catalog — storefront-style catalogue (home2)</SelectItem>
+        </Select>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">The section list below only applies to the Classic layout. The Catalog layout shows a hero, category grid, popular products and per-category collections automatically.</p>
+      </div>
       <div>
         <button
           type="button"

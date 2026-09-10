@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
+import { CatalogHome } from "./catalog-home";
 import {
   FiArrowRight,
   FiCheckCircle,
@@ -50,7 +51,20 @@ type Product = {
   categoryId: string;
   productType?: string;
   category: { id?: string; name: string; slug: string };
+  attributes?: { id: string; name: string; values: { id: string; value: string }[] }[];
+  variations?: {
+    id: string;
+    name: string;
+    sku: string | null;
+    price: number;
+    salePrice: number | null;
+    stock: number;
+    image: string | null;
+    attributes: { attributeId: string; valueId: string; value: { value: string } }[];
+  }[];
 };
+
+type Variation = NonNullable<Product["variations"]>[number];
 
 type Category = {
   id: string;
@@ -92,7 +106,7 @@ type HomeSection = {
   showViewAll: boolean;
 };
 
-type HomePageConfig = { sections: HomeSection[] };
+type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog" };
 
 type HeroBannerConfig = {
   enabled?: boolean;
@@ -322,6 +336,8 @@ export function Storefront() {
     [products]
   );
 
+  const activeLayout = homeConfig?.layout ?? "classic";
+
   const hero = useMemo(
     () => ({
       enabled: bannerConfig?.enabled !== false,
@@ -348,71 +364,89 @@ export function Storefront() {
   const mins = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0");
   const secs = String(countdown % 60).padStart(2, "0");
 
-  function add(p: Product) {
-    if (p.productType === "VARIABLE") {
+  function add(p: Product, variation?: Variation) {
+    if (p.productType === "VARIABLE" && !variation) {
       window.location.href = "/products/" + p.slug;
       return;
     }
-    const price = Number(p.salePrice ?? p.price);
+    const price = variation
+      ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
+      : Number(p.salePrice ?? p.price);
+    const cartId = variation ? `${p.id}__${variation.id}` : p.id;
+    const displayName = variation ? `${p.name} (${variation.name})` : p.name;
+    const sku = variation?.sku ?? undefined;
+    const variationId = variation?.id ?? undefined;
     setCart((old) =>
-      old.some((i) => i.id === p.id)
-        ? old.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i))
+      old.some((i) => i.id === cartId)
+        ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
         : [
             ...old,
             {
-              id: p.id,
+              id: cartId,
               slug: p.slug,
-              name: p.name,
-              images: p.images,
+              name: displayName,
+              images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
               categoryId: p.category.slug,
               qty: 1,
+              variationId,
+              sku,
             },
           ]
     );
     setOpen(true);
   }
 
-  function buyNow(p: Product) {
-    if (p.productType === "VARIABLE") {
+  function buyNow(p: Product, variation?: Variation) {
+    if (p.productType === "VARIABLE" && !variation) {
       window.location.href = "/products/" + p.slug;
       return;
     }
-    const price = Number(p.salePrice ?? p.price);
+    const price = variation
+      ? Number(variation.salePrice && variation.salePrice < variation.price ? variation.salePrice : variation.price)
+      : Number(p.salePrice ?? p.price);
+    const cartId = variation ? `${p.id}__${variation.id}` : p.id;
+    const displayName = variation ? `${p.name} (${variation.name})` : p.name;
+    const sku = variation?.sku ?? undefined;
+    const variationId = variation?.id ?? undefined;
     const old = JSON.parse(localStorage.getItem("epic-cart") ?? "[]") as Array<{ id: string; qty: number }>;
-    const hit = old.find((i) => i.id === p.id);
+    const hit = old.find((i) => i.id === cartId);
     localStorage.setItem(
       "epic-cart",
       JSON.stringify(
         hit
-          ? old.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i))
+          ? old.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
           : [
               ...old,
               {
-                id: p.id,
+                id: cartId,
                 slug: p.slug,
-                name: p.name,
-                images: p.images,
+                name: displayName,
+                images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
                 price,
                 categoryId: p.category.slug,
                 qty: 1,
+                variationId,
+                sku,
               },
             ]
       )
     );
     setCart((old2) =>
-      old2.some((i) => i.id === p.id)
-        ? old2.map((i) => (i.id === p.id ? { ...i, qty: i.qty + 1 } : i))
+      old2.some((i) => i.id === cartId)
+        ? old2.map((i) => (i.id === cartId ? { ...i, qty: i.qty + 1 } : i))
         : [
             ...old2,
             {
-              id: p.id,
+              id: cartId,
               slug: p.slug,
-              name: p.name,
-              images: p.images,
+              name: displayName,
+              images: variation?.image ? [variation.image, ...p.images.filter((i) => i !== variation.image)] : p.images,
               price,
               categoryId: p.category.slug,
               qty: 1,
+              variationId,
+              sku,
             },
           ]
     );
@@ -591,6 +625,18 @@ export function Storefront() {
         </div>
       )}
 
+      {activeLayout === "catalog" ? (
+        <CatalogHome
+          products={products}
+          categories={categories}
+          hero={hero}
+          allowAddToCart={allowAddToCart}
+          whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null}
+          add={add}
+          buyNow={buyNow}
+        />
+      ) : (
+        <>
       {/* Hero Banner */}
       {hero.enabled && (
         <section className="relative border-b border-slate-100 bg-slate-50">
@@ -1031,6 +1077,8 @@ export function Storefront() {
           </p>
         </div>
       </section>
+        </>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-slate-50">
