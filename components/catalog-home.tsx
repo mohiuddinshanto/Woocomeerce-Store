@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiArrowRight, FiCheck, FiTruck, FiRefreshCw, FiShield, FiMessageCircle } from "react-icons/fi";
+import { CarouselSlider } from "./carousel-slider";
 
 const money = (v: number | string) => `৳ ${Number(v).toLocaleString("en-BD")}`;
 
@@ -65,24 +66,6 @@ const CTA = ({ label, href, primary }: { label: string; href?: string; primary?:
   }
   return <button className={base} onClick={() => scrollToId("#shop")}>{text} <FiArrowRight size={14} /></button>;
 };
-
-function Slider({ children, id }: { children: React.ReactNode; id: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
-  return (
-    <div className="relative group">
-      <div ref={ref} id={id} className="flex items-stretch gap-5 overflow-x-auto custom-scrollbar scroll-smooth pb-3">
-        {children}
-      </div>
-      <button aria-label="Previous" onClick={() => scroll(-1)} className="absolute -left-3 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-emerald-50 hover:border-emerald-300 sm:flex">
-        <FiChevronLeft size={16} />
-      </button>
-      <button aria-label="Next" onClick={() => scroll(1)} className="absolute -right-3 top-1/2 z-20 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:bg-emerald-50 hover:border-emerald-300 sm:flex">
-        <FiChevronRight size={16} />
-      </button>
-    </div>
-  );
-}
 
 function CatalogCard({
   p,
@@ -414,11 +397,17 @@ export function CatalogHome({
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {filteredProducts.slice(0, 8).map((p) => (
+        <CarouselSlider
+          items={filteredProducts.slice(0, 8).map((p) => (
             <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} />
           ))}
-        </div>
+          seconds={5}
+          auto
+          loop
+          perView={{ mobile: 1, tablet: 2, desktop: 4 }}
+          pagination
+          ariaLabel="Popular products"
+        />
       </section>
 
       {/* CATEGORY SLIDERS */}
@@ -436,11 +425,17 @@ export function CatalogHome({
               সবগুলো দেখুন →
             </Link>
           </div>
-          <Slider id={`slider-${c.id}`}>
-            {c.items.map((p) => (
+          <CarouselSlider
+            items={c.items.map((p) => (
               <CatalogCard key={p.id} p={p} add={add} buyNow={buyNow} allowAddToCart={allowAddToCart} whatsapp={whatsapp} />
             ))}
-          </Slider>
+            seconds={4}
+            auto
+            loop
+            perView={{ mobile: 1, tablet: 2, desktop: 3 }}
+            pagination
+            ariaLabel={`${c.name} collection`}
+          />
         </section>
       ))}
 
