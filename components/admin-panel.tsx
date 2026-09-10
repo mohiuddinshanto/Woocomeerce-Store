@@ -70,6 +70,18 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  slides?: {
+    id: string;
+    image?: string | null;
+    badge?: string | null;
+    title?: string | null;
+    accent?: string | null;
+    subtitle?: string | null;
+    buttonLabel?: string | null;
+    buttonLink?: string | null;
+    secondaryLabel?: string | null;
+    secondaryLink?: string | null;
+  }[];
 };
 
 type ProductImageDetail = {
@@ -3050,126 +3062,194 @@ function PaymentSettings({ save, saving, config }: { save: (payload: object) => 
 function BannerSettings({ save, saving, config, token }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config; token: string }) {
   const current = config.heroBannerConfig ?? {};
   const [enabled, setEnabled] = useState(current.enabled !== false);
-  const [imageInput, setImageInput] = useState<string>(current.image ?? "");
-  const [imagePreview, setImagePreview] = useState(current.image ?? "");
-  const [uploading, setUploading] = useState(false);
+  const [announceText, setAnnounceText] = useState(current.announceText ?? "");
 
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  type SlideData = {
+    id: string;
+    image: string;
+    badge: string;
+    title: string;
+    accent: string;
+    subtitle: string;
+    buttonLabel: string;
+    buttonLink: string;
+    secondaryLabel: string;
+    secondaryLink: string;
+    uploading: boolean;
+  };
+
+  const makeEmptySlide = (): SlideData => ({
+    id: crypto.randomUUID(),
+    image: "", badge: "", title: "", accent: "", subtitle: "",
+    buttonLabel: "", buttonLink: "", secondaryLabel: "", secondaryLink: "",
+    uploading: false,
+  });
+
+  const [slides, setSlides] = useState<SlideData[]>(() => {
+    const raw = current.slides;
+    if (raw && raw.length > 0) {
+      return raw.map((s: any) => ({
+        id: s.id || crypto.randomUUID(),
+        image: s.image ?? "",
+        badge: s.badge ?? "",
+        title: s.title ?? "",
+        accent: s.accent ?? "",
+        subtitle: s.subtitle ?? "",
+        buttonLabel: s.buttonLabel ?? "",
+        buttonLink: s.buttonLink ?? "",
+        secondaryLabel: s.secondaryLabel ?? "",
+        secondaryLink: s.secondaryLink ?? "",
+        uploading: false,
+      }));
+    }
+    if (current.image || current.title) {
+      return [{
+        id: crypto.randomUUID(),
+        image: current.image ?? "",
+        badge: current.badge ?? "",
+        title: current.title ?? "",
+        accent: current.accent ?? "",
+        subtitle: current.subtitle ?? "",
+        buttonLabel: current.buttonLabel ?? "",
+        buttonLink: current.buttonLink ?? "",
+        secondaryLabel: current.secondaryLabel ?? "",
+        secondaryLink: current.secondaryLink ?? "",
+        uploading: false,
+      }];
+    }
+    return [makeEmptySlide()];
+  });
+
+  function updateSlide(id: string, patch: Partial<SlideData>) {
+    setSlides((old) => old.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  async function handleUpload(id: string, event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+    updateSlide(id, { uploading: true });
     try {
       const form = new FormData();
       form.append("image", file);
       const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
-      setImagePreview(data.url);
-      setImageInput(data.url);
-      toast.success("Banner image uploaded");
+      updateSlide(id, { image: data.url, uploading: false });
+      toast.success("Image uploaded");
     } catch (error) {
+      updateSlide(id, { uploading: false });
       toast.error(error instanceof Error ? error.message : "Upload failed");
     } finally {
-      setUploading(false);
       event.target.value = "";
     }
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const f = new FormData(event.currentTarget);
-    const str = (key: string) => {
-      const v = String(f.get(key) ?? "").trim();
-      return v || null;
-    };
+  function submit() {
+    const cleaned = slides
+      .filter((s) => s.image || s.title)
+      .map((s) => ({
+        id: s.id,
+        image: s.image || null,
+        badge: s.badge || null,
+        title: s.title || null,
+        accent: s.accent || null,
+        subtitle: s.subtitle || null,
+        buttonLabel: s.buttonLabel || null,
+        buttonLink: s.buttonLink || null,
+        secondaryLabel: s.secondaryLabel || null,
+        secondaryLink: s.secondaryLink || null,
+      }));
     save({
       heroBannerConfig: {
         enabled,
-        image: imageInput || null,
-        badge: str("badge"),
-        title: str("title"),
-        accent: str("accent"),
-        subtitle: str("subtitle"),
-        buttonLabel: str("buttonLabel"),
-        buttonLink: str("buttonLink"),
-        secondaryLabel: str("secondaryLabel"),
-        secondaryLink: str("secondaryLink"),
-        announceText: str("announceText"),
+        announceText: announceText || null,
+        slides: cleaned.length > 0 ? cleaned : undefined,
       },
     });
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl">
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Show hero banner</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500">Turn the home page hero banner on or off on the storefront.</p>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Hero banner slider</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Add one or more banners. With multiple banners they will auto-slide in a carousel.</p>
           </div>
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
+        <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="Shown above the header. Leave empty to hide." />
+      </div>
 
-        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-2">Banner image</p>
-        <div className="flex items-start gap-4">
-          {imagePreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imagePreview} alt="Banner preview" className="h-32 w-56 object-cover rounded-xl border border-gray-100 dark:border-white/6" />
-          ) : (
-            <div className="grid h-32 w-56 place-items-center rounded-xl border border-dashed border-gray-200 dark:border-white/10 text-xs text-gray-400">No image — falls back to a product photo</div>
-          )}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 px-4 h-10 bg-gray-900 dark:bg-white/10 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
-              <FiBox size={14} />
-              {uploading ? "Uploading…" : "Upload Banner Image"}
-              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-            </label>
-            {imagePreview && (
-              <button type="button" onClick={() => { setImagePreview(""); setImageInput(""); }} className="px-3 h-8 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
-                Remove image
+      {slides.map((slide, idx) => (
+        <div key={slide.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-gray-800 dark:text-slate-200">Banner {idx + 1}</p>
+            {slides.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setSlides((old) => old.filter((s) => s.id !== slide.id))}
+                className="icon-square-btn text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10"
+              >
+                <FiTrash2 size={14} />
               </button>
             )}
-            <p className="text-[0.65rem] leading-relaxed text-gray-400 dark:text-slate-500 max-w-[220px]">
-              Suggested ratio ~16:7 (wide). Fallback: first product photo.
-            </p>
+          </div>
+
+          <div className="flex items-start gap-4">
+            {slide.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={slide.image} alt={`Banner ${idx + 1}`} className="h-32 w-56 object-cover rounded-xl border border-gray-100 dark:border-white/6" />
+            ) : (
+              <div className="grid h-32 w-56 place-items-center rounded-xl border border-dashed border-gray-200 dark:border-white/10 text-xs text-gray-400">No image yet</div>
+            )}
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 px-4 h-10 bg-gray-900 dark:bg-white/10 text-white text-xs font-bold rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
+                <FiBox size={14} />
+                {slide.uploading ? "Uploading…" : "Upload Image"}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleUpload(slide.id, e)} disabled={slide.uploading} />
+              </label>
+              {slide.image && (
+                <button type="button" onClick={() => updateSlide(slide.id, { image: "" })} className="px-3 h-8 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors">
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input label="Badge" placeholder="e.g. নতুন কালেকশন" value={slide.badge} onValueChange={(v) => updateSlide(slide.id, { badge: v })} />
+            <Input label="Title (first line)" placeholder="Objects for" value={slide.title} onValueChange={(v) => updateSlide(slide.id, { title: v })} />
+            <Input className="sm:col-span-2" label="Title (accent line)" placeholder="a softer daily life." value={slide.accent} onValueChange={(v) => updateSlide(slide.id, { accent: v })} />
+            <Textarea className="sm:col-span-2" label="Subtitle" minRows={2} placeholder="Thoughtfully curated premium pieces…" value={slide.subtitle} onValueChange={(v) => updateSlide(slide.id, { subtitle: v })} />
+            <Input label="Primary button text" placeholder="Explore Collection" value={slide.buttonLabel} onValueChange={(v) => updateSlide(slide.id, { buttonLabel: v })} />
+            <Input label="Primary button link" placeholder="#shop or /products/slug or https://…" value={slide.buttonLink} onValueChange={(v) => updateSlide(slide.id, { buttonLink: v })} />
+            <Input label="Secondary button text" placeholder="Shop by Category" value={slide.secondaryLabel} onValueChange={(v) => updateSlide(slide.id, { secondaryLabel: v })} />
+            <Input label="Secondary button link" placeholder="#categories" value={slide.secondaryLink} onValueChange={(v) => updateSlide(slide.id, { secondaryLink: v })} />
           </div>
         </div>
-      </div>
+      ))}
 
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-4">Headline & copy</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Badge" name="badge" placeholder='e.g. ঈদ ও উৎসব কালেকশন ২০২৬' defaultValue={current.badge ?? ""} />
-          <Input label="Title (first line)" name="title" placeholder="Objects for" defaultValue={current.title ?? ""} />
-          <Input className="sm:col-span-2" label="Title (accent line)" name="accent" placeholder="a softer daily life." defaultValue={current.accent ?? ""} />
-          <Textarea className="sm:col-span-2" label="Subtitle" name="subtitle" minRows={2} placeholder="Thoughtfully curated premium pieces…" defaultValue={current.subtitle ?? ""} />
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-4">Buttons</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Primary button text" name="buttonLabel" placeholder="Explore Collection" defaultValue={current.buttonLabel ?? ""} />
-          <Input label="Primary button link" name="buttonLink" placeholder="#shop or /products/slug or https://…" defaultValue={current.buttonLink ?? ""} />
-          <Input label="Secondary button text" name="secondaryLabel" placeholder="Shop by Category" defaultValue={current.secondaryLabel ?? ""} />
-          <Input label="Secondary button link" name="secondaryLink" placeholder="#categories or /categories/slug" defaultValue={current.secondaryLink ?? ""} />
-        </div>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-3">Links starting with <b>#</b> scroll to that section on the page. Anything else is opened as a page link.</p>
-      </div>
-
-      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
-        <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Top announcement bar</p>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Shown above the header. Leave empty to hide the bar.</p>
-        <Input label="Announcement text" name="announceText" placeholder="e.g. ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ফ্রি ডেলিভারি" defaultValue={current.announceText ?? ""} />
-      </div>
+      <button
+        type="button"
+        onClick={() => setSlides((old) => [...old, makeEmptySlide()])}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-gray-200 dark:border-white/10 text-sm font-semibold text-gray-500 hover:border-primary hover:text-primary transition-colors"
+      >
+        <FiPlus size={16} /> Add Another Banner
+      </button>
 
       <div className="flex items-center gap-3">
-        <button type="submit" className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
-          {saving ? "Saving…" : "Save Hero Banner"}
+        <button
+          type="button"
+          onClick={submit}
+          className="px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors"
+        >
+          {saving ? "Saving…" : "Save Hero Banners"}
         </button>
-        {enabled === false && <span className="text-xs text-gray-400">Hero banner is currently hidden on the storefront.</span>}
+        {!enabled && <span className="text-xs text-gray-400">Hero banner is currently hidden.</span>}
+        <span className="text-xs text-gray-400">{slides.length} banner{slides.length !== 1 ? "s" : ""}</span>
       </div>
-    </form>
+    </div>
   );
 }
 

@@ -40,16 +40,17 @@ type Variation = NonNullable<Product["variations"]>[number];
 
 type Category = { id: string; name: string; slug: string; parentId?: string | null; subCategories?: Category[] };
 
-type HeroCfg = {
-  image?: string | null;
-  badge?: string | null;
-  title?: string | null;
-  accent?: string | null;
-  subtitle?: string | null;
-  buttonLabel?: string | null;
-  buttonLink?: string | null;
-  secondaryLabel?: string | null;
-  secondaryLink?: string | null;
+type HeroSlide = {
+  id: string;
+  image: string;
+  badge: string | null;
+  title: string | null;
+  accent: string | null;
+  subtitle: string | null;
+  buttonLabel: string | null;
+  buttonLink: string | null;
+  secondaryLabel: string | null;
+  secondaryLink: string | null;
 };
 
 const scrollToId = (link: string) => document.getElementById(link.replace(/^#/, ""))?.scrollIntoView({ behavior: "smooth" });
@@ -256,7 +257,7 @@ function CatalogCard({
 export function CatalogHome({
   products,
   categories,
-  hero,
+  heroSlides,
   allowAddToCart,
   whatsapp,
   add,
@@ -264,7 +265,7 @@ export function CatalogHome({
 }: {
   products: Product[];
   categories: Category[];
-  hero: HeroCfg;
+  heroSlides: HeroSlide[];
   allowAddToCart: boolean;
   whatsapp: string | null;
   add: (p: Product, variation?: Variation) => void;
@@ -292,47 +293,54 @@ export function CatalogHome({
     <>
       {/* HERO */}
       <section className="mx-auto max-w-7xl px-4 py-4 md:py-6">
-        <div className="relative flex min-h-[420px] items-center overflow-hidden rounded-2xl bg-gradient-to-r from-[#031d14] via-[#093d2b] to-[#12573d] text-white shadow-xl md:min-h-[480px]">
-          <div className="relative z-10 grid w-full items-center gap-6 px-8 py-8 md:grid-cols-12 md:px-14">
-            <div className="space-y-4 md:col-span-7">
-              {hero.badge && <p className="text-sm font-medium tracking-wide text-amber-300">{hero.badge}</p>}
-              <h1 className="text-3xl font-extrabold leading-tight tracking-tight md:text-5xl lg:text-6xl">
-                {hero.title || "প্রতিটি মুহূর্তে"} <br />
-                <span className="text-amber-400">{hero.accent || "স্টাইলের সঙ্গী"}</span>
-              </h1>
-              {hero.subtitle && (
-                <p className="flex flex-wrap items-center gap-2 text-xs text-emerald-100/80 font-light md:text-sm">
-                  {hero.subtitle.split("|").map((s, i) => (
-                    <span key={i} className="flex items-center gap-2">
-                      {i > 0 && <span className="opacity-50">|</span>}
-                      {s.trim()}
-                    </span>
-                  ))}
-                </p>
-              )}
-              <div className="pt-3">
-                <CTA label={hero.buttonLabel ?? ""} href={hero.buttonLink ?? "#shop"} primary />
-              </div>
-            </div>
-            <div className="relative flex justify-center md:col-span-5 md:justify-end">
-              <div className="relative max-w-xs w-full md:max-w-md">
+        <div className="overflow-hidden rounded-2xl shadow-xl">
+          <CarouselSlider
+            items={heroSlides.map((s) => (
+              <div key={s.id} className="relative flex min-h-[420px] items-center overflow-hidden bg-gradient-to-r from-[#031d14] via-[#093d2b] to-[#12573d] text-white md:min-h-[480px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={hero.image || FALLBACK}
-                  alt="Banner"
-                  className="h-72 w-full rounded-xl object-cover object-top shadow-2xl md:h-96"
-                />
-                <div className="absolute -bottom-3 right-2 rounded-lg border border-emerald-500/30 bg-emerald-900/90 px-3 py-1.5 text-xs text-amber-200 shadow-lg backdrop-blur-sm md:right-4">
-                  ঐতিহ্যের ছোঁয়ায় আধুনিকতার রূপ
+                <img src={s.image} alt={s.title || "Banner"} className="absolute inset-0 h-full w-full object-cover opacity-40" />
+                <div className="relative z-10 grid w-full items-center gap-6 px-8 py-8 md:grid-cols-12 md:px-14">
+                  <div className="space-y-4 md:col-span-7">
+                    {s.badge && <p className="text-sm font-medium tracking-wide text-amber-300">{s.badge}</p>}
+                    <h1 className="text-3xl font-extrabold leading-tight tracking-tight md:text-5xl lg:text-6xl">
+                      {s.title || "প্রতিটি মুহূর্তে"} <br />
+                      <span className="text-amber-400">{s.accent || "স্টাইলের সঙ্গী"}</span>
+                    </h1>
+                    {s.subtitle && (
+                      <p className="flex flex-wrap items-center gap-2 text-xs text-emerald-100/80 font-light md:text-sm">
+                        {s.subtitle.split("|").map((t, i) => (
+                          <span key={i} className="flex items-center gap-2">
+                            {i > 0 && <span className="opacity-50">|</span>}
+                            {t.trim()}
+                          </span>
+                        ))}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-3 pt-3">
+                      <CTA label={s.buttonLabel ?? ""} href={s.buttonLink ?? "#shop"} primary />
+                      <CTA label={s.secondaryLabel ?? ""} href={s.secondaryLink ?? "#categories"} />
+                    </div>
+                  </div>
+                  <div className="relative flex justify-center md:col-span-5 md:justify-end">
+                    <div className="relative max-w-xs w-full md:max-w-md">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={s.image}
+                        alt="Banner"
+                        className="h-72 w-full rounded-xl object-cover object-top shadow-2xl md:h-96"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-          <div className="absolute bottom-3 right-6 z-20 flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-            <span className="h-2 w-2 rounded-full bg-white/40" />
-            <span className="h-2 w-2 rounded-full bg-white/40" />
-          </div>
+            ))}
+            seconds={5}
+            auto={heroSlides.length > 1}
+            loop={heroSlides.length > 1}
+            perView={{ mobile: 1, tablet: 1, desktop: 1 }}
+            pagination={heroSlides.length > 1}
+            ariaLabel="Hero banner carousel"
+          />
         </div>
       </section>
 

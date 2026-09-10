@@ -120,6 +120,31 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  slides?: {
+    id: string;
+    image?: string | null;
+    badge?: string | null;
+    title?: string | null;
+    accent?: string | null;
+    subtitle?: string | null;
+    buttonLabel?: string | null;
+    buttonLink?: string | null;
+    secondaryLabel?: string | null;
+    secondaryLink?: string | null;
+  }[];
+};
+
+type HeroSlide = {
+  id: string;
+  image: string;
+  badge: string | null;
+  title: string | null;
+  accent: string | null;
+  subtitle: string | null;
+  buttonLabel: string | null;
+  buttonLink: string | null;
+  secondaryLabel: string | null;
+  secondaryLink: string | null;
 };
 
 const DEFAULT_HERO: Required<Pick<HeroBannerConfig, "badge" | "title" | "accent" | "subtitle" | "buttonLabel" | "buttonLink" | "secondaryLabel" | "secondaryLink" | "announceText">> = {
@@ -338,9 +363,9 @@ export function Storefront() {
 
   const activeLayout = homeConfig?.layout ?? "classic";
 
-  const hero = useMemo(
-    () => ({
-      enabled: bannerConfig?.enabled !== false,
+  const hero = useMemo(() => {
+    const fallbackSlide: HeroSlide = {
+      id: "fallback",
       image: bannerConfig?.image || heroImage,
       badge: bannerConfig?.badge ?? DEFAULT_HERO.badge,
       title: bannerConfig?.title ?? DEFAULT_HERO.title,
@@ -350,10 +375,29 @@ export function Storefront() {
       buttonLink: bannerConfig?.buttonLink ?? DEFAULT_HERO.buttonLink,
       secondaryLabel: bannerConfig?.secondaryLabel ?? DEFAULT_HERO.secondaryLabel,
       secondaryLink: bannerConfig?.secondaryLink ?? DEFAULT_HERO.secondaryLink,
+    };
+    const rawSlides = bannerConfig?.slides;
+    const slides: HeroSlide[] =
+      rawSlides && rawSlides.length > 0
+        ? rawSlides.map((s, i) => ({
+            id: s.id || `slide-${i}`,
+            image: s.image || heroImage,
+            badge: s.badge ?? fallbackSlide.badge,
+            title: s.title ?? fallbackSlide.title,
+            accent: s.accent ?? fallbackSlide.accent,
+            subtitle: s.subtitle ?? fallbackSlide.subtitle,
+            buttonLabel: s.buttonLabel ?? fallbackSlide.buttonLabel,
+            buttonLink: s.buttonLink ?? fallbackSlide.buttonLink,
+            secondaryLabel: s.secondaryLabel ?? fallbackSlide.secondaryLabel,
+            secondaryLink: s.secondaryLink ?? fallbackSlide.secondaryLink,
+          }))
+        : [fallbackSlide];
+    return {
+      enabled: bannerConfig?.enabled !== false,
       announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
-    }),
-    [bannerConfig, heroImage]
-  );
+      slides,
+    };
+  }, [bannerConfig, heroImage]);
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const totalCount = cart.reduce((s, i) => s + i.qty, 0);
@@ -629,7 +673,7 @@ export function Storefront() {
         <CatalogHome
           products={products}
           categories={categories}
-          hero={hero}
+          heroSlides={hero.slides}
           allowAddToCart={allowAddToCart}
           whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null}
           add={add}
@@ -637,53 +681,62 @@ export function Storefront() {
         />
       ) : (
         <>
-      {/* Hero Banner */}
-      {hero.enabled && (
+      {/* Hero Banner Carousel */}
+      {hero.enabled && hero.slides.length > 0 && (
         <section className="relative border-b border-slate-100 bg-slate-50">
           <div className="mx-auto max-w-[1400px] px-[6vw] py-6 lg:py-10">
             <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5">
-              <div className="relative flex min-h-[380px] items-center sm:min-h-[440px] lg:min-h-[480px]">
-                <Image
-                  src={hero.image}
-                  alt="EPIC curated collection"
-                  fill
-                  priority
-                  sizes="100vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
-                <div className="relative z-10 max-w-2xl space-y-5 p-6 sm:p-10 lg:p-14">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 backdrop-blur-md">
-                    <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
-                    <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
-                      {hero.badge}
-                    </span>
-                  </div>
-                  <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                    {hero.title} <br />
-                    <span className="gradient-text">{hero.accent}</span>
-                  </h1>
-                  <p className="max-w-md text-[0.95rem] leading-relaxed text-slate-500">
-                    {hero.subtitle}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 pt-1">
-                    <HeroCta label={hero.buttonLabel} link={hero.buttonLink} />
-                    <HeroCta label={hero.secondaryLabel} link={hero.secondaryLink} secondary />
-                  </div>
-                </div>
+              <CarouselSlider
+                items={hero.slides.map((slide) => (
+                  <div key={slide.id} className="relative flex min-h-[380px] items-center sm:min-h-[440px] lg:min-h-[480px]">
+                    <Image
+                      src={slide.image}
+                      alt={slide.title || "Banner"}
+                      fill
+                      priority
+                      sizes="100vw"
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
+                    <div className="relative z-10 max-w-2xl space-y-5 p-6 sm:p-10 lg:p-14">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 backdrop-blur-md">
+                        <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
+                        <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+                          {slide.badge}
+                        </span>
+                      </div>
+                      <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                        {slide.title} <br />
+                        <span className="gradient-text">{slide.accent}</span>
+                      </h1>
+                      <p className="max-w-md text-[0.95rem] leading-relaxed text-slate-500">
+                        {slide.subtitle}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 pt-1">
+                        <HeroCta label={slide.buttonLabel} link={slide.buttonLink} />
+                        <HeroCta label={slide.secondaryLabel} link={slide.secondaryLink} secondary />
+                      </div>
+                    </div>
 
-                <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
-                  <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
-                    <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
-                      🔥
-                    </div>
-                    <div>
-                      <strong className="block text-sm text-slate-900">Trending Item</strong>
-                      <span className="text-xs text-slate-400">Rated 4.9 ★ by customers</span>
+                    <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
+                      <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
+                        <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
+                          🔥
+                        </div>
+                        <div>
+                          <strong className="block text-sm text-slate-900">Trending Item</strong>
+                          <span className="text-xs text-slate-400">Rated 4.9 ★ by customers</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                ))}
+                seconds={6}
+                auto={hero.slides.length > 1}
+                loop={hero.slides.length > 1}
+                perView={{ mobile: 1, tablet: 1, desktop: 1 }}
+                pagination={hero.slides.length > 1}
+              />
             </div>
           </div>
         </section>
