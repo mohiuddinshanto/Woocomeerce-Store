@@ -3163,7 +3163,16 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
       heroBannerConfig: {
         enabled,
         announceText: announceText || null,
-        slides: cleaned.length > 0 ? cleaned : undefined,
+        image: cleaned[0]?.image ?? null,
+        badge: cleaned[0]?.badge ?? null,
+        title: cleaned[0]?.title ?? null,
+        accent: cleaned[0]?.accent ?? null,
+        subtitle: cleaned[0]?.subtitle ?? null,
+        buttonLabel: cleaned[0]?.buttonLabel ?? null,
+        buttonLink: cleaned[0]?.buttonLink ?? null,
+        secondaryLabel: cleaned[0]?.secondaryLabel ?? null,
+        secondaryLink: cleaned[0]?.secondaryLink ?? null,
+        slides: cleaned,
       },
     });
   }
