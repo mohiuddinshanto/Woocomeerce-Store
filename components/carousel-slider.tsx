@@ -18,11 +18,12 @@ type Props = {
   pagination: boolean;
   loop: boolean;
   ariaLabel?: string;
+  spaceBetween?: number;
 };
 
 const maxPerView = (p: PerView) => Math.max(1, p.mobile, p.tablet, p.desktop);
 
-export function CarouselSlider({ items, seconds, auto, perView, pagination, loop, ariaLabel }: Props) {
+export function CarouselSlider({ items, seconds, auto, perView, pagination, loop, ariaLabel, spaceBetween = 20 }: Props) {
   const prevRef = useRef<HTMLButtonElement | null>(null);
   const nextRef = useRef<HTMLButtonElement | null>(null);
 
@@ -56,7 +57,7 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
       {arrows}
       <Swiper
         modules={[Autoplay, Pagination, Navigation]}
-        spaceBetween={20}
+        spaceBetween={spaceBetween}
         slidesPerView={perView.mobile}
         loop={canLoop}
         grabCursor

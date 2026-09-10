@@ -339,6 +339,7 @@ export function CatalogHome({
             loop={heroSlides.length > 1}
             perView={{ mobile: 1, tablet: 1, desktop: 1 }}
             pagination={heroSlides.length > 1}
+            spaceBetween={0}
             ariaLabel="Hero banner carousel"
           />
         </div>

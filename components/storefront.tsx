@@ -736,6 +736,7 @@ export function Storefront() {
                 loop={hero.slides.length > 1}
                 perView={{ mobile: 1, tablet: 1, desktop: 1 }}
                 pagination={hero.slides.length > 1}
+                spaceBetween={0}
               />
             </div>
           </div>
