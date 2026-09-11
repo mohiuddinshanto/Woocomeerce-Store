@@ -154,7 +154,7 @@ const DEFAULT_HERO: Required<Pick<HeroBannerConfig, "badge" | "title" | "accent"
   subtitle:
     "Thoughtfully curated premium pieces designed to work beautifully every single day — from Dhaka to Dhaka, delivered everywhere in between.",
   buttonLabel: "Explore Collection",
-  buttonLink: "#shop",
+  buttonLink: "#categories",
   secondaryLabel: "Shop by Category",
   secondaryLink: "#categories",
   announceText: "ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ঢাকা ও চট্টগ্রামে ফ্রি এক্সপ্রেস ডেলিভারি",
@@ -169,7 +169,7 @@ const scrollToId = (link: string) => {
 
 function HeroCta({ label, link, secondary }: { label: string | null; link: string | null; secondary?: boolean }) {
   const text = label || (secondary ? "Shop by Category" : "Explore Collection");
-  const href = link || (secondary ? "#categories" : "#shop");
+  const href = link || (secondary ? "#categories" : "#categories");
   const content = secondary ? (
     <span className="inline-flex items-center gap-2">
       <FiLayers /> {text}
@@ -224,7 +224,6 @@ export function Storefront() {
   const pathname = usePathname();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [active, setActive] = useState("all");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -287,16 +286,6 @@ export function Storefront() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  const items = useMemo(
-    () =>
-      products.filter(
-        (p) =>
-          (active === "all" || p.category.slug === active) &&
-          p.name.toLowerCase().includes(query.toLowerCase())
-      ),
-    [products, active, query]
-  );
 
   const categorySections = useMemo(
     () =>
@@ -537,7 +526,7 @@ export function Storefront() {
       {/* Top Announcement Bar */}
       {hero.announceText && (
         <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
             Festive Drop 2026
           </span>
@@ -545,7 +534,7 @@ export function Storefront() {
             {hero.announceText}
           </span>
           <Link
-            href="#shop"
+            href="#categories"
             className="inline-flex items-center gap-1 text-[0.8rem] font-bold text-primary hover:underline"
           >
             Explore Drops <FiArrowRight size={13} />
@@ -627,16 +616,6 @@ export function Storefront() {
               />
             </label>
 
-            <button
-              className="mobile-link"
-              onClick={() => {
-                document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" });
-                setMobileNavOpen(false);
-              }}
-            >
-              All Products
-            </button>
-
             {navMenus.length > 0
               ? navMenus.map((item) => (
                   <MobileNavLink
@@ -678,6 +657,7 @@ export function Storefront() {
           whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null}
           add={add}
           buyNow={buyNow}
+          sections={homeConfig?.sections}
         />
       ) : (
         <>
@@ -688,7 +668,7 @@ export function Storefront() {
             <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5">
               <CarouselSlider
                 items={hero.slides.map((slide) => (
-                  <div key={slide.id} className="relative flex min-h-[380px] items-center sm:min-h-[440px] lg:min-h-[480px]">
+                  <div key={slide.id} className="relative flex min-h-[320px] items-center sm:min-h-[440px] lg:min-h-[480px]">
                     <Image
                       src={slide.image}
                       alt={slide.title || "Banner"}
@@ -698,21 +678,21 @@ export function Storefront() {
                       className="object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-white via-white/92 to-white/40" />
-                    <div className="relative z-10 max-w-2xl space-y-5 p-6 sm:p-10 lg:p-14">
+                    <div className="relative z-10 w-full max-w-2xl space-y-4 p-5 sm:p-10 lg:p-14">
                       <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 backdrop-blur-md">
                         <span className="h-2 w-2 animate-ping rounded-full bg-primary" />
-                        <span className="font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+                        <span className="text-xs font-semibold text-primary">
                           {slide.badge}
                         </span>
                       </div>
-                      <h1 className="font-display text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+                      <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                         {slide.title} <br />
                         <span className="gradient-text">{slide.accent}</span>
                       </h1>
                       <p className="max-w-md text-[0.95rem] leading-relaxed text-slate-500">
                         {slide.subtitle}
                       </p>
-                      <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <div className="flex flex-wrap items-center gap-3 pt-1 max-w-full">
                         <HeroCta label={slide.buttonLabel} link={slide.buttonLink} />
                         <HeroCta label={slide.secondaryLabel} link={slide.secondaryLink} secondary />
                       </div>
@@ -776,7 +756,7 @@ export function Storefront() {
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 font-mono text-xs font-semibold text-slate-400">
+            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-400">
               {categorySections.length} CATEGORIES
             </span>
           </div>
@@ -792,7 +772,7 @@ export function Storefront() {
                 {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
               </div>
               <span className="text-sm font-bold text-slate-900">{c.name}</span>
-              <span className="mt-0.5 font-mono text-[0.7rem] text-primary">
+              <span className="mt-0.5 text-xs text-primary">
                 {c.items.length} ITEMS
               </span>
             </Link>
@@ -832,11 +812,11 @@ export function Storefront() {
               <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-0.5 font-mono text-[0.68rem] font-semibold uppercase tracking-wider text-primary">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
                       <FiShoppingBag size={12} />
                       {s.name}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[0.68rem] font-semibold text-slate-400">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-400">
                       {s.items.length} ITEMS
                     </span>
                   </div>
@@ -886,7 +866,7 @@ export function Storefront() {
               />
               <div className="relative grid items-center gap-8 lg:grid-cols-12">
                 <div className="space-y-4 lg:col-span-7">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                     <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
                     Limited Time Offer
                   </span>
@@ -896,30 +876,30 @@ export function Storefront() {
                   <p className="max-w-lg text-[0.95rem] leading-relaxed text-slate-500">
                     One standout piece at a standout price, refreshed every day. Valid till midnight.
                   </p>
-                  <div className="flex items-center gap-3 pt-1">
+                  <div className="flex flex-wrap items-center gap-2.5 pt-1 sm:gap-3">
                     {[
                       { v: hours, l: "Hours" },
                       { v: mins, l: "Mins" },
                       { v: secs, l: "Secs" },
                     ].map((t, i) => (
-                      <div key={t.l} className="flex items-center gap-3">
-                        <div className="grid min-w-[64px] place-items-center rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                          <span className="font-mono text-2xl font-bold text-primary">{t.v}</span>
-                          <span className="font-mono text-[0.65rem] uppercase tracking-widest text-slate-400">
+                      <div key={t.l} className="flex items-center gap-2 sm:gap-3">
+                        <div className="grid min-w-[52px] place-items-center rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm sm:min-w-[64px] sm:px-3 sm:py-2">
+                          <span className="font-mono text-lg font-bold text-primary sm:text-2xl">{t.v}</span>
+                          <span className="text-xs uppercase tracking-wider text-slate-400 sm:text-[0.75rem]">
                             {t.l}
                           </span>
                         </div>
-                        {i < 2 && <span className="font-mono text-2xl font-bold text-slate-300">:</span>}
+                        {i < 2 && <span className="font-mono text-lg font-bold text-slate-300 sm:text-2xl">:</span>}
                       </div>
                     ))}
                   </div>
                   <div className="flex flex-wrap items-center gap-4 pt-2">
                     <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-3xl font-bold text-primary">
+                      <span className="text-3xl font-bold text-primary">
                         {dealHasSale ? money(featuredDeal.salePrice!) : money(featuredDeal.price)}
                       </span>
                       {dealHasSale && (
-                        <span className="font-mono text-sm text-slate-400 line-through">
+                        <span className="text-sm text-slate-400 line-through">
                           {money(featuredDeal.price)}
                         </span>
                       )}
@@ -958,97 +938,6 @@ export function Storefront() {
           </div>
         </section>
       )}
-
-      {/* All Products Grid */}
-      <section className="catalog" id="shop">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">THE FULL COLLECTION</span>
-            <h2>All products.</h2>
-            {query && (
-              <p className="muted mt-1">
-                Showing results for “{query}” ({items.length})
-              </p>
-            )}
-          </div>
-          <span className="section-count">{items.length} pieces available</span>
-        </div>
-
-        <div className="filters">
-          <button className={active === "all" ? "active" : ""} onClick={() => setActive("all")}>
-            All ({products.length})
-          </button>
-          {categories.map((c) => (
-            <button
-              className={active === c.slug ? "active" : ""}
-              key={c.id}
-              onClick={() => setActive(c.slug)}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-
-        {items.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--muted)" }}>
-            <h3>No products found</h3>
-            <p>Try searching for another keyword or change your filter.</p>
-          </div>
-        ) : (
-          <div className="product-grid">
-            {items.map((p) => {
-              const hasSale = Boolean(p.salePrice && Number(p.salePrice) < Number(p.price));
-              const isWishlisted = wishlist.includes(p.id);
-              return (
-                <article className="product-card" key={p.id}>
-                  <Link href={`/products/${p.slug}`} className="product-image">
-                    <Image
-                      src={p.images[0] || FALLBACK_IMG}
-                      alt={p.name}
-                      fill
-                      sizes="(max-width: 650px) 100vw, 33vw"
-                    />
-                    {hasSale && <span className="sale-tag">SALE</span>}
-                    <button
-                      className="wishlist-btn"
-                      onClick={(e) => toggleWishlist(p.id, e)}
-                      aria-label="Wishlist"
-                      style={{ color: isWishlisted ? "#ef4444" : "inherit" }}
-                    >
-                      <FiHeart fill={isWishlisted ? "#ef4444" : "none"} />
-                    </button>
-                  </Link>
-
-                  <div className="product-info">
-                    <Link href={`/categories/${p.category.slug}`} className="category-label">
-                      {p.category.slug === "home" ? "Home" : p.category.slug === "footwear" ? "Footwear" : p.category.slug === "lifestyle" ? "Lifestyle" : "Fashion"}
-                    </Link>
-                    <h3>{p.name}</h3>
-
-                    <div className="product-meta">
-                      <div className="price">
-                        {hasSale && <del>{money(p.price)}</del>}
-                        {money(p.salePrice ?? p.price)}
-                      </div>
-                      <button className={`add-bag-btn ${allowAddToCart ? "" : "order-now-btn"}`} onClick={() => (allowAddToCart ? add(p) : buyNow(p))}>
-                        {allowAddToCart ? (
-                          <>
-                            <FiShoppingBag /> Add
-                          </>
-                        ) : (
-                          <>
-                            <FiZap /> Order Now
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
       {/* Customer Reviews */}
       <section className="border-t border-slate-100 bg-slate-50 py-16">
@@ -1116,7 +1005,7 @@ export function Storefront() {
       {/* Newsletter */}
       <section className="border-t border-slate-100 bg-white py-16">
         <div className="mx-auto max-w-2xl space-y-5 px-[6vw] text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 font-mono text-[0.7rem] font-semibold uppercase tracking-wider text-primary">
+          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
             <FiCheckCircle size={13} /> Exclusive drops
           </span>
           <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
@@ -1126,7 +1015,7 @@ export function Storefront() {
             Early access to limited drops, restocks, and members-only discounts — straight to your inbox.
           </p>
           <NewsletterForm />
-          <p className="font-mono text-[0.7rem] text-slate-400">
+          <p className="text-xs text-slate-500">
             No spam. One-click unsubscribe anytime.
           </p>
         </div>
@@ -1135,7 +1024,7 @@ export function Storefront() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-slate-50">
+      <footer className="border-t border-slate-200 bg-slate-50 pb-16 md:pb-0">
         <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-[6vw] py-8 text-center sm:flex-row sm:text-left">
           <div className="flex items-center gap-3">
             <Link href="/" className="brand">
@@ -1162,15 +1051,15 @@ export function Storefront() {
           <div className="flex items-center gap-2.5">
             <div className="relative text-primary">
               <FiShoppingBag size={24} />
-              <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary font-mono text-[0.6rem] font-bold text-white">
+              <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary text-xs font-bold text-white">
                 {totalCount}
               </span>
             </div>
             <div>
-              <span className="block font-mono text-[0.65rem] uppercase tracking-widest text-slate-400">
+              <span className="block text-xs uppercase tracking-wider text-slate-400">
                 Cart Subtotal
               </span>
-              <span className="font-mono text-sm font-bold text-primary">{money(total)}</span>
+              <span className="text-sm font-bold text-primary">{money(total)}</span>
             </div>
           </div>
           <button
@@ -1514,7 +1403,7 @@ function MiniProductCard({
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         {hasSale && (
-          <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-widest text-white backdrop-blur-md">
+          <span className="absolute left-3 top-3 rounded-full border border-rose-500/30 bg-rose-500/90 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur-md">
             SALE
           </span>
         )}
@@ -1529,22 +1418,22 @@ function MiniProductCard({
       </Link>
 
       <div className="space-y-1.5 p-4">
-        <div className="flex items-baseline gap-2">
-          <span className="font-mono text-[1.05rem] font-bold text-primary">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className="text-lg font-bold text-primary">
             {money(p.salePrice ?? p.price)}
           </span>
           {hasSale && (
-            <span className="font-mono text-xs text-slate-400 line-through">{money(p.price)}</span>
+            <span className="text-sm text-slate-400 line-through">{money(p.price)}</span>
           )}
         </div>
-        <h3 className="truncate text-sm font-semibold text-slate-900 group-hover:text-primary">
+        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-primary">
           {p.name}
         </h3>
         {p.description && (
-          <p className="line-clamp-2 text-xs leading-relaxed text-slate-500">{p.description}</p>
+          <p className="line-clamp-2 text-sm leading-relaxed text-slate-500">{p.description}</p>
         )}
         <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5 max-sm:flex-col max-sm:items-start">
-          <span className="font-mono text-[0.65rem] uppercase tracking-widest text-slate-400">
+          <span className="text-xs font-medium text-slate-500">
             {p.category.name}
           </span>
           <button

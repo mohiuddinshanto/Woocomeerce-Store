@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Button, Input, Tab, Tabs } from "@heroui/react";
 import Image from "next/image";
@@ -58,7 +58,7 @@ function StatusChip({ status }: { status: string }) {
           : "bg-slate-500/10 text-slate-600 border-slate-400/25";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[0.72rem] font-bold uppercase tracking-wider ${palette}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${palette}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {status}
@@ -140,7 +140,7 @@ export function AccountPanel() {
     localStorage.removeItem(key);
     setUser(null);
     setToken("");
-    toast.success("Signed out");
+    toast.success("উইশলিস্ট থেকে সরানো হয়েছে");
   }
 
   if (!user) {
@@ -167,7 +167,7 @@ export function AccountPanel() {
 
           <div className="overflow-hidden rounded-3xl border border-white/70 bg-white/85 shadow-xl shadow-slate-900/10 glass">
             <div className="relative bg-gradient-to-br from-primary via-indigo-600 to-cyan px-8 py-9 text-white">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 font-mono text-[0.68rem] font-bold uppercase tracking-[0.15em] backdrop-blur-sm">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wide backdrop-blur-sm">
                 <FiUser size={12} /> Customer Portal
               </span>
               <h1 className="font-display mt-4 text-3xl font-extrabold tracking-tight">
@@ -188,7 +188,7 @@ export function AccountPanel() {
             </div>
           </div>
 
-          <p className="mt-6 text-center font-mono text-[0.72rem] tracking-widest text-slate-400">
+          <p className="mt-6 text-center text-xs tracking-widest text-slate-400">
             EPIC&nbsp;•&nbsp;CUSTOMER&nbsp;PORTAL
           </p>
         </div>
@@ -231,18 +231,18 @@ export function AccountPanel() {
             <h1 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
               Hello, {firstName} <span className="gradient-text">👋</span>
             </h1>
-            <p className="mt-1 flex items-center gap-2 font-mono text-sm text-slate-400">
+            <p className="mt-1 flex items-center gap-2 text-sm text-slate-400">
               <FiMail size={14} /> {user.email}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3 text-center">
               <div className="font-display text-2xl font-extrabold text-slate-900">{orders.length}</div>
-              <div className="font-mono text-[0.68rem] uppercase tracking-widest text-slate-400">Orders</div>
+              <div className="text-xs uppercase tracking-widest text-slate-400">Orders</div>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50 px-5 py-3 text-center">
               <div className="font-display text-2xl font-extrabold text-slate-900">{wishlist.length}</div>
-              <div className="font-mono text-[0.68rem] uppercase tracking-widest text-slate-400">Saved</div>
+              <div className="text-xs uppercase tracking-widest text-slate-400">Saved</div>
             </div>
           </div>
         </div>
@@ -270,7 +270,7 @@ export function AccountPanel() {
                         <FiCalendar size={20} />
                       </div>
                       <div>
-                        <div className="font-mono text-sm font-bold text-slate-900">
+                        <div className="text-sm font-bold text-slate-900">
                           #{order.id.slice(0, 8).toUpperCase()}
                         </div>
                         <div className="text-sm text-slate-400">
@@ -299,7 +299,7 @@ export function AccountPanel() {
                 <h3 className="font-display text-lg font-bold text-slate-900">No orders yet</h3>
                 <p className="muted mt-1">When you place an order, it will show up here.</p>
                 <Link
-                  href="/#shop"
+                  href="/#categories"
                   className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/40"
                 >
                   Explore the collection →
@@ -326,7 +326,7 @@ export function AccountPanel() {
                 <h3 className="font-display text-lg font-bold text-slate-900">Nothing saved yet</h3>
                 <p className="muted mt-1">Tap the heart on any product to keep it here.</p>
                 <Link
-                  href="/#shop"
+                  href="/#categories"
                   className="mt-6 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-indigo-500/40"
                 >
                   Browse Products →
@@ -355,12 +355,12 @@ export function AccountPanel() {
                       />
                     </Link>
                     <div className="p-4">
-                      <div className="text-[0.68rem] font-bold uppercase tracking-widest text-primary">
+                      <div className="text-xs font-medium text-slate-500">
                         {item.product.category.name}
                       </div>
                       <Link
                         href={`/products/${item.product.slug}`}
-                        className="mt-1 block truncate font-semibold text-slate-900 hover:text-primary"
+                        className="mt-1 block text-sm font-semibold text-slate-900 hover:text-primary"
                       >
                         {item.product.name}
                       </Link>
@@ -428,3 +428,4 @@ function AccountForm({
     </form>
   );
 }
+

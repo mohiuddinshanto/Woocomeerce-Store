@@ -21,7 +21,7 @@ type Props = {
   spaceBetween?: number;
 };
 
-const maxPerView = (p: PerView) => Math.max(1, p.mobile, p.tablet, p.desktop);
+const maxPerView = (p: PerView) => Math.max(1, Math.ceil(p.mobile), Math.ceil(p.tablet), Math.ceil(p.desktop));
 
 export function CarouselSlider({ items, seconds, auto, perView, pagination, loop, ariaLabel, spaceBetween = 20 }: Props) {
   const prevRef = useRef<HTMLButtonElement | null>(null);
@@ -62,7 +62,18 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
         loop={canLoop}
         grabCursor
         touchRatio={1.1}
-        navigation={{ prevEl: prevRef.current, nextEl: nextRef.current }}
+        onBeforeInit={(sw) => {
+          if (prevRef.current && nextRef.current) {
+            sw.params.navigation!.prevEl = prevRef.current;
+            sw.params.navigation!.nextEl = nextRef.current;
+          }
+        }}
+        onInit={(sw) => {
+          if (prevRef.current && nextRef.current) {
+            sw.navigation.init();
+            sw.navigation.update();
+          }
+        }}
         autoplay={
           useAutoplay
             ? { delay: Math.max(1, seconds) * 1000, disableOnInteraction: false, pauseOnMouseEnter: true }
@@ -73,11 +84,11 @@ export function CarouselSlider({ items, seconds, auto, perView, pagination, loop
           640: { slidesPerView: perView.tablet },
           1024: { slidesPerView: perView.desktop },
         }}
-        className="carousel-swiper no-scrollbar"
+        className="carousel-swiper no-scrollbar !items-stretch"
         aria-label={ariaLabel}
       >
         {items.map((el, i) => (
-          <SwiperSlide key={i}>{el}</SwiperSlide>
+          <SwiperSlide key={i} className="!h-auto">{el}</SwiperSlide>
         ))}
       </Swiper>
     </div>

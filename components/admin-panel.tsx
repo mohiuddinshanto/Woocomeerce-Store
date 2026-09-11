@@ -330,7 +330,7 @@ export function AdminPanel() {
           </div>
           <div className={`flex-1 min-w-0 ${collapsed ? "lg:hidden" : ""}`}>
             <p className="font-display font-bold text-gray-900 dark:text-white text-sm leading-tight truncate">{config.storeName}</p>
-            <p className="text-[10px] text-gray-400 dark:text-slate-500">Admin Control Panel</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Admin Control Panel</p>
           </div>
           <button
             onClick={() => setMobileSidebar(false)}
@@ -524,7 +524,7 @@ function AdminOverview({ token }: { token: string }) {
                     <td className="py-3 px-3 text-gray-400 dark:text-slate-500 text-xs whitespace-nowrap">
                       {new Date(order.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(order.totalAmount)}</td>
+                    <td className="py-3 px-3 font-bold text-xs text-gray-800 dark:text-slate-200">{money(order.totalAmount)}</td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${order.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
                         {order.paymentStatus}
@@ -1879,12 +1879,12 @@ function AdminProducts({ token }: { token: string }) {
                         <img src={p.images[0] || "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&q=80"} alt="" className="w-8 h-8 rounded-lg object-cover" />
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white text-xs max-w-[220px] truncate">{p.name}</p>
-                          <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono italic">{p.slug}</p>
+                          <p className="text-xs text-gray-400 dark:text-slate-500 font-mono italic">{p.slug}</p>
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-xs text-gray-600 dark:text-slate-400">{p.category?.name ?? "—"}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-xs text-gray-900 dark:text-white">{money(p.salePrice ?? p.price)}</td>
+                    <td className="py-3 px-4 font-bold text-xs text-gray-900 dark:text-white">{money(p.salePrice ?? p.price)}</td>
                     <td className="py-3 px-4">
                       <span className={`font-mono text-xs font-bold ${p.stock === 0 ? "text-rose-500" : p.stock < 20 ? "text-amber" : "text-emerald"}`}>{p.stock}</span>
                     </td>
@@ -2243,8 +2243,8 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                           <span className="text-xs font-bold text-gray-800 dark:text-slate-200">{c.label}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{c.parcels.length}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(c.parcels.reduce((s, o) => s + Number(o.totalAmount), 0))}</td>
+                      <td className="py-3 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{c.parcels.length}</td>
+                      <td className="py-3 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(c.parcels.reduce((s, o) => s + Number(o.totalAmount), 0))}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{count("SENT")}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{count("SHIPPED")}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{count("DELIVERED")}</td>
@@ -2273,10 +2273,10 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       <tbody className="divide-y divide-gray-50 dark:divide-white/4">
                         {c.parcels.map((o) => (
                           <tr key={o.id}>
-                            <td className="py-2.5 px-4 font-mono text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
+                            <td className="py-2.5 px-4 text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">{o.shippingDetails?.name ?? "Guest"}</td>
-                            <td className="py-2.5 px-4 font-mono text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
-                            <td className="py-2.5 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
+                            <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
+                            <td className="py-2.5 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
                             <td className="py-2.5 px-4">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
                                 {o.paymentStatus}
@@ -2331,13 +2331,13 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   <div className="mt-2 flex flex-wrap items-center gap-1.5">
     <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">{o.courierName}</span>
     {o.courierTrackingId && (
-      <span className="min-w-0 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-gray-500 font-mono truncate">{o.courierTrackingId}</span>
+      <span className="min-w-0 text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-gray-500 font-mono truncate">{o.courierTrackingId}</span>
     )}
   </div>
 )}
                       <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/6">
                         <span className="text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</span>
-                        <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">{money(o.totalAmount)}</span>
+                        <span className="font-bold text-sm text-gray-900 dark:text-white">{money(o.totalAmount)}</span>
                       </div>
                       <div className="mt-3 min-w-0">
                         <Select size="sm" aria-label="Move status" selectedKeys={[o.status]} onChange={(e) => updateStatus(o.id, e.target.value, o.paymentStatus)} className="w-full">
@@ -2384,10 +2384,10 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <tbody className="divide-y divide-gray-50 dark:divide-white/4">
                 {orders.map((o) => (
                   <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-white/3 transition-colors">
-                    <td className="py-3 px-4 font-mono text-xs text-primary font-bold">#{o.id.slice(0, 8)}</td>
+                    <td className="py-3 px-4 text-xs text-primary font-bold">#{o.id.slice(0, 8)}</td>
                     <td className="py-3 px-4 font-medium text-gray-800 dark:text-slate-200 text-xs">{o.shippingDetails?.name ?? "Guest"}</td>
                     <td className="py-3 px-4 text-gray-400 dark:text-slate-500 text-xs whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
+                    <td className="py-3 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
                         {o.paymentStatus}
@@ -2400,7 +2400,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       {o.courierName ? (
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] font-bold text-indigo-500">{o.courierName}</span>
-                          {o.courierTrackingId && <span className="text-[10px] font-mono text-gray-400">{o.courierTrackingId}</span>}
+                          {o.courierTrackingId && <span className="text-xs font-mono text-gray-400">{o.courierTrackingId}</span>}
                         </div>
                       ) : (
                         <span className="text-xs text-gray-300 dark:text-slate-600">—</span>
@@ -2959,9 +2959,9 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-5 gap-y-4">
-            <Input type="number" min={1} max={4} label="Per view (Mobile)" value={String(s.perView.mobile)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, mobile: Math.max(1, Math.min(4, Number(v) || 1)) } })} />
-            <Input type="number" min={1} max={6} label="Per view (Tablet)" value={String(s.perView.tablet)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, tablet: Math.max(1, Math.min(6, Number(v) || 1)) } })} />
-            <Input type="number" min={1} max={8} label="Per view (Desktop)" value={String(s.perView.desktop)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, desktop: Math.max(1, Math.min(8, Number(v) || 1)) } })} />
+            <Input type="number" step="0.5" min="0.5" label="Per view (Mobile)" value={String(s.perView.mobile)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, mobile: Math.max(0.5, Number(v) || 1) } })} />
+            <Input type="number" step="0.5" min="0.5" label="Per view (Tablet)" value={String(s.perView.tablet)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, tablet: Math.max(0.5, Number(v) || 1) } })} />
+            <Input type="number" step="0.5" min="0.5" label="Per view (Desktop)" value={String(s.perView.desktop)} onValueChange={(v) => update(s.id, { perView: { ...s.perView, desktop: Math.max(0.5, Number(v) || 1) } })} />
           </div>
 
           <Switch isSelected={s.showViewAll} onValueChange={(v) => update(s.id, { showViewAll: v })} color="primary">
