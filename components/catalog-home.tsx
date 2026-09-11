@@ -38,7 +38,7 @@ type Product = {
 
 type Variation = NonNullable<Product["variations"]>[number];
 
-type Category = { id: string; name: string; slug: string; parentId?: string | null; subCategories?: Category[] };
+type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; subCategories?: Category[] };
 
 type HeroSlide = {
   id: string;
@@ -414,7 +414,7 @@ export function CatalogHome({
             >
               <div className="relative mb-2.5 aspect-square overflow-hidden rounded-lg bg-emerald-50">
                 <Image
-                  src={img(products.find((p) => p.categoryId === c.id) ?? { images: [] } as any)}
+                  src={c.image ?? img(products.find((p) => p.categoryId === c.id) ?? { images: [] } as any)}
                   alt={c.name}
                   fill
                   sizes="200px"

@@ -70,6 +70,7 @@ type Category = {
   id: string;
   name: string;
   slug: string;
+  image?: string | null;
   parentId?: string | null;
   subCategories?: Category[];
 };
@@ -106,7 +107,16 @@ type HomeSection = {
   showViewAll: boolean;
 };
 
-type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog" };
+type CategoryDisplayConfig = {
+  mode?: "grid" | "carousel" | "loop";
+  auto?: boolean;
+  loop?: boolean;
+  seconds?: number;
+  pagination?: boolean;
+  perView?: { mobile: number; tablet: number; desktop: number };
+};
+
+type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog"; categories?: CategoryDisplayConfig };
 
 type HeroBannerConfig = {
   enabled?: boolean;
@@ -120,6 +130,11 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  trendingPill?: {
+    enabled?: boolean;
+    topText?: string | null;
+    bottomText?: string | null;
+  };
   slides?: {
     id: string;
     image?: string | null;
@@ -352,6 +367,9 @@ export function Storefront() {
 
   const activeLayout = homeConfig?.layout ?? "classic";
 
+  const categoryConfig = homeConfig?.categories ?? {};
+  const categoryMode: "grid" | "carousel" | "loop" = categoryConfig.mode ?? "grid";
+
   const hero = useMemo(() => {
     const fallbackSlide: HeroSlide = {
       id: "fallback",
@@ -384,6 +402,7 @@ export function Storefront() {
     return {
       enabled: bannerConfig?.enabled !== false,
       announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
+      trendingPill: bannerConfig?.trendingPill ?? {},
       slides,
     };
   }, [bannerConfig, heroImage]);
@@ -698,17 +717,23 @@ export function Storefront() {
                       </div>
                     </div>
 
-                    <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
-                      <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
-                        <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
-                          🔥
-                        </div>
-                        <div>
-                          <strong className="block text-sm text-slate-900">Trending Item</strong>
-                          <span className="text-xs text-slate-400">Rated 4.9 ★ by customers</span>
+                    {hero.trendingPill?.enabled !== false && (
+                      <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
+                        <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
+                          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
+                            🔥
+                          </div>
+                          <div>
+                            <strong className="block text-sm text-slate-900">
+                              {hero.trendingPill?.topText || "Trending Item"}
+                            </strong>
+                            <span className="text-xs text-slate-400">
+                              {hero.trendingPill?.bottomText || "Rated 4.9 ★ by customers"}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 ))}
                 seconds={6}
@@ -761,23 +786,64 @@ export function Storefront() {
             </span>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {categorySections.map((c) => (
-            <Link
-              key={c.id}
-              href={`/categories/${c.slug}`}
-              className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
-            >
-              <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primary/10 to-cyan/10 text-primary transition-transform group-hover:scale-110">
-                {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
-              </div>
-              <span className="text-sm font-bold text-slate-900">{c.name}</span>
-              <span className="mt-0.5 text-xs text-primary">
-                {c.items.length} ITEMS
-              </span>
-            </Link>
-          ))}
-        </div>
+                {categoryMode === "grid" ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
+            {categorySections.map((c) => (
+              <Link
+                key={c.id}
+                href={`/categories/${c.slug}`}
+                className="group flex flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="mb-3 h-16 w-16 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-cyan/10">
+                  {c.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center text-primary transition-transform group-hover:scale-110">
+                      {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-slate-900">{c.name}</span>
+                <span className="mt-0.5 text-xs text-primary">
+                  {c.items.length} ITEMS
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <CarouselSlider
+            key={`cat-${categoryMode}`}
+            ariaLabel="Shop by category"
+            items={categorySections.map((c) => (
+              <Link
+                key={c.id}
+                href={`/categories/${c.slug}`}
+                className="group flex h-full flex-col items-center rounded-2xl border border-slate-100 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="mb-3 h-16 w-16 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 to-cyan/10">
+                  {c.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.image} alt={c.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" loading="lazy" />
+                  ) : (
+                    <span className="grid h-full w-full place-items-center text-primary transition-transform group-hover:scale-110">
+                      {CATEGORY_ICONS[c.slug.toLowerCase()] ?? <FiShoppingBag size={24} />}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-slate-900">{c.name}</span>
+                <span className="mt-0.5 text-xs text-primary">
+                  {c.items.length} ITEMS
+                </span>
+              </Link>
+            ))}
+            seconds={categoryConfig.seconds ?? 3}
+            auto={categoryMode === "loop" ? true : (categoryConfig.auto ?? false)}
+            perView={categoryConfig.perView ?? { mobile: 1, tablet: 2, desktop: 4 }}
+            pagination={categoryConfig.pagination ?? false}
+            loop={categoryMode === "loop" ? true : (categoryConfig.loop ?? false)}
+          />
+        )}
       </section>
 
       {/* Category Sections (carousel / grid / responsive — configurable) */}

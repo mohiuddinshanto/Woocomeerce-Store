@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -40,7 +40,7 @@ type Config = {
   cooldownMinutes: number;
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
   chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
-  homePageConfig?: { sections: HomeSectionDef[]; layout?: "classic" | "catalog" };
+  homePageConfig?: { sections: HomeSectionDef[]; layout?: "classic" | "catalog"; categories?: CategoryDisplay };
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
 };
@@ -70,6 +70,11 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  trendingPill?: {
+    enabled?: boolean;
+    topText?: string | null;
+    bottomText?: string | null;
+  };
   slides?: {
     id: string;
     image?: string | null;
@@ -158,7 +163,7 @@ type Order = {
   courierTrackingId?: string;
 };
 
-type Category = { id: string; name: string; slug: string; parentId?: string | null; subCategories?: Category[] };
+type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; subCategories?: Category[] };
 type MenuItem = { id: string; label: string; type: "category" | "custom"; categoryId?: string; href?: string; children: MenuItem[] };
 type Coupon = { id: string; code: string; type: string; value: string; minSpend?: string; usedCount: number; isActive: boolean };
 type Review = { id: string; rating: number; comment?: string; isApproved: boolean; product: { name: string }; user: { name: string; email: string } };
@@ -421,7 +426,7 @@ export function AdminPanel() {
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {section === "overview" && <AdminOverview token={token} />}
           {section === "products" && <AdminProducts token={token} />}
-          {section === "categories" && <AdminCategories token={token} />}
+          {section === "categories" && <AdminCategories token={token} config={config} save={save} saving={saving} />}
           {section === "orders" && <AdminOrders token={token} config={config} />}
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
@@ -1932,9 +1937,25 @@ function AdminProducts({ token }: { token: string }) {
 }
 
 /* ==================== CATEGORIES ==================== */
-function AdminCategories({ token }: { token: string }) {
+type CategoryDisplay = {
+  mode?: "grid" | "carousel" | "loop";
+  auto?: boolean;
+  loop?: boolean;
+  seconds?: number;
+  pagination?: boolean;
+  perView?: { mobile: number; tablet: number; desktop: number };
+};
+
+function AdminCategories({ token, config, save, saving }: { token: string; config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [creating, setCreating] = useState(false);
+  const [display, setDisplay] = useState<CategoryDisplay>(config.homePageConfig?.categories ?? {});
+  const [displayDirty, setDisplayDirty] = useState(false);
+
+  useEffect(() => {
+    setDisplay(config.homePageConfig?.categories ?? {});
+    setDisplayDirty(false);
+  }, [config.homePageConfig?.categories]);
   const [parentId, setParentId] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -1973,20 +1994,65 @@ function AdminCategories({ token }: { token: string }) {
     }
   }
 
-  async function renameCategory(id: string) {
+  async function saveCategory(id: string) {
     const cat = categories.find((c) => c.id === id);
     if (!cat) return;
-    const name = prompt("Category name", cat.name);
-    if (!name || name.trim().length < 2) return;
-    const res = await api(`/api/admin/categories/${id}`, token, {
-      method: "PATCH",
-      body: JSON.stringify({ name: name.trim() }),
-    });
-    if (res.ok) {
+    const nameRef = document.getElementById(`cat-name-${id}`) as HTMLInputElement | null;
+    const slugRef = document.getElementById(`cat-slug-${id}`) as HTMLInputElement | null;
+    const name = (nameRef?.value ?? cat.name).trim();
+    if (name.length < 2) return toast.error("Category name must be at least 2 characters");
+    const slugRaw = (slugRef?.value ?? cat.slug).trim();
+    const slug = slugRaw.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || cat.slug;
+    try {
+      const res = await api(`/api/admin/categories/${id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ name, slug }),
+      });
+      if (!res.ok) throw new Error("Update failed");
       toast.success("Category updated");
       setEditingId(null);
       load();
-    } else toast.error("Update failed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+
+  async function uploadCategoryImage(id: string, event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploadingId(id);
+    try {
+      const form = new FormData();
+      form.append("image", file);
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      const res = await api(`/api/admin/categories/${id}`, token, {
+        method: "PATCH",
+        body: JSON.stringify({ image: data.url }),
+      });
+      if (!res.ok) throw new Error("Could not save image");
+      toast.success("Category image updated");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingId(null);
+      event.target.value = "";
+    }
+  }
+
+  async function removeCategoryImage(id: string) {
+    const res = await api(`/api/admin/categories/${id}`, token, {
+      method: "PATCH",
+      body: JSON.stringify({ image: null }),
+    });
+    if (res.ok) {
+      toast.success("Category image removed");
+      load();
+    } else toast.error("Could not remove image");
   }
 
   async function deleteCategory(id: string) {
@@ -2003,8 +2069,135 @@ function AdminCategories({ token }: { token: string }) {
 
   const subCategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
 
+  function sanitizeDisplay(d: CategoryDisplay): CategoryDisplay {
+    const mode: CategoryDisplay["mode"] = d.mode === "carousel" || d.mode === "loop" ? d.mode : "grid";
+    const seconds = Math.min(60, Math.max(1, Math.round(Number(d.seconds) || 3)));
+    const perView = d.perView;
+    const clean: CategoryDisplay = { mode };
+    if (mode !== "grid") {
+      clean.seconds = seconds;
+      if (perView) {
+        clean.perView = {
+          mobile: Math.min(4, Math.max(1, Number(perView.mobile) || 1)),
+          tablet: Math.min(5, Math.max(1, Number(perView.tablet) || 2)),
+          desktop: Math.min(6, Math.max(1, Number(perView.desktop) || 4)),
+        };
+      }
+      clean.auto = Boolean(d.auto);
+      clean.loop = Boolean(d.loop);
+      clean.pagination = Boolean(d.pagination);
+    }
+    return clean;
+  }
+
+  async function saveDisplay() {
+    await save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: sanitizeDisplay(display) } });
+  }
+
   return (
     <div className="space-y-5 max-w-3xl">
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Category Showcase (Shop by Category)</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              How the category cards appear on the home page. Classic layout only.
+            </p>
+          </div>
+          {displayDirty && (
+            <button
+              onClick={saveDisplay}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Display
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Display mode"
+            selectedKeys={[display.mode ?? "grid"]}
+            onSelectionChange={(keys) => {
+              const mode = (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid";
+              setDisplay((d) => ({ ...d, mode }));
+              setDisplayDirty(true);
+            }}
+          >
+            <SelectItem key="grid">Grid — static cards</SelectItem>
+            <SelectItem key="carousel">Carousel — swipeable</SelectItem>
+            <SelectItem key="loop">Loop — auto-sliding carousel</SelectItem>
+          </Select>
+          {(display.mode === "carousel" || display.mode === "loop") && (
+            <Input
+              type="number"
+              label="Auto-slide seconds"
+              min={1}
+              max={60}
+              step={1}
+              value={String(display.seconds ?? 3)}
+              onValueChange={(v) => {
+                setDisplay((d) => ({ ...d, seconds: Number(v) || 3 }));
+                setDisplayDirty(true);
+              }}
+            />
+          )}
+        </div>
+        {(display.mode === "carousel" || display.mode === "loop") && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Input
+              type="number"
+              label="Per view — mobile"
+              min={1}
+              max={4}
+              value={String(display.perView?.mobile ?? 1)}
+              onValueChange={(v) => {
+                setDisplay((d) => ({ ...d, perView: { ...d.perView!, mobile: Number(v) || 1 } }));
+                setDisplayDirty(true);
+              }}
+            />
+            <Input
+              type="number"
+              label="Per view — tablet"
+              min={1}
+              max={5}
+              value={String(display.perView?.tablet ?? 2)}
+              onValueChange={(v) => {
+                setDisplay((d) => ({ ...d, perView: { ...d.perView!, tablet: Number(v) || 2 } }));
+                setDisplayDirty(true);
+              }}
+            />
+            <Input
+              type="number"
+              label="Per view — desktop"
+              min={1}
+              max={6}
+              value={String(display.perView?.desktop ?? 4)}
+              onValueChange={(v) => {
+                setDisplay((d) => ({ ...d, perView: { ...d.perView!, desktop: Number(v) || 4 } }));
+                setDisplayDirty(true);
+              }}
+            />
+          </div>
+        )}
+        {display.mode === "carousel" && (
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={display.auto ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, auto: v })); setDisplayDirty(true); }} color="primary" />
+              Auto-slide
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={display.loop ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, loop: v })); setDisplayDirty(true); }} color="primary" />
+              Loop
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={display.pagination ?? false} onValueChange={(v) => { setDisplay((d) => ({ ...d, pagination: v })); setDisplayDirty(true); }} color="primary" />
+              Dots
+            </label>
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-display font-bold text-gray-900 dark:text-white">
           Categories & Sub-categories ({categories.filter((c) => !c.parentId).length} parents)
@@ -2052,29 +2245,76 @@ function AdminCategories({ token }: { token: string }) {
             const subs = subCategories(cat.id);
             return (
               <div key={cat.id} className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 overflow-hidden">
-                <div className="flex items-center gap-3 px-5 py-4">
-                  <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-cyan flex items-center justify-center text-white text-xs font-bold">
-                    {cat.name[0]?.toUpperCase() ?? "C"}
+                <div className="flex items-start gap-3 px-5 py-4">
+                  <span className="relative w-12 h-12 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-primary to-cyan flex items-center justify-center text-white text-xs font-bold">
+                    {cat.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={cat.image} alt={cat.name} className="h-full w-full object-cover" />
+                    ) : (
+                      (cat.name[0]?.toUpperCase() ?? "C")
+                    )}
                   </span>
-                  <div className="flex-1">
-                    <p className="font-display font-bold text-sm text-gray-900 dark:text-white">{cat.name}</p>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">
-                      /{cat.slug} · {subs.length} sub-categories
-                    </p>
+                  <div className="flex-1 min-w-0">
+                    {editingId === cat.id ? (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            id={`cat-name-${cat.id}`}
+                            defaultValue={cat.name}
+                            className="w-full max-w-56 h-9 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm text-gray-900 dark:text-white outline-none focus:border-primary"
+                            placeholder="Category name"
+                          />
+                          <input
+                            id={`cat-slug-${cat.id}`}
+                            defaultValue={cat.slug}
+                            className="w-full max-w-40 h-9 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm text-gray-900 dark:text-white outline-none focus:border-primary"
+                            placeholder="slug"
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="flex items-center gap-2 px-3 h-8 rounded-lg bg-primary/10 text-primary text-xs font-bold cursor-pointer hover:bg-primary/20 transition-colors">
+                            {uploadingId === cat.id ? <FiUpload className="animate-pulse" /> : <FiImage />}
+                            {cat.image ? "Change image" : "Upload image"}
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadCategoryImage(cat.id, e)} disabled={uploadingId === cat.id} />
+                          </label>
+                          {cat.image && (
+                            <button
+                              type="button"
+                              onClick={() => removeCategoryImage(cat.id)}
+                              className="px-3 h-8 rounded-lg bg-rose-50 text-rose-500 text-xs font-bold hover:bg-rose-100 transition-colors"
+                            >
+                              Remove image
+                            </button>
+                          )}
+                          <button
+                            onClick={() => saveCategory(cat.id)}
+                            className="px-4 h-8 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-dark transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-3 h-8 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-300 text-xs font-semibold hover:bg-gray-200 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="font-display font-bold text-sm text-gray-900 dark:text-white">{cat.name}</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500">
+                          /{cat.slug} · {subs.length} sub-categories
+                        </p>
+                      </>
+                    )}
                   </div>
-                  {editingId === cat.id ? (
-                    <button
-                      onClick={() => renameCategory(cat.id)}
-                      className="px-3 h-8 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-dark transition-colors"
-                    >
-                      Save
-                    </button>
-                  ) : (
+                  {editingId !== cat.id && (
                     <button
                       onClick={() => setEditingId(cat.id)}
                       className="px-3 h-8 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 text-xs font-semibold rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
                     >
-                      Rename
+                      <FiEdit2 /> Edit
                     </button>
                   )}
                   <button
@@ -3063,6 +3303,9 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const current = config.heroBannerConfig ?? {};
   const [enabled, setEnabled] = useState(current.enabled !== false);
   const [announceText, setAnnounceText] = useState(current.announceText ?? "");
+  const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
+  const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
+  const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 ★ by customers");
 
   type SlideData = {
     id: string;
@@ -3184,6 +3427,11 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
       heroBannerConfig: {
         enabled,
         announceText: announceText || null,
+        trendingPill: {
+          enabled: pillEnabled,
+          topText: pillTop || null,
+          bottomText: pillBottom || null,
+        },
         image: cleaned[0]?.image ?? null,
         badge: cleaned[0]?.badge ?? null,
         title: cleaned[0]?.title ?? null,
@@ -3209,6 +3457,22 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
         <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="Shown above the header. Leave empty to hide." />
+
+        <div className="rounded-xl border border-gray-100 dark:border-white/6 bg-gray-50/60 dark:bg-white/3 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-slate-200">Floating trending badge</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">Small "Trending Item" card floating on the banner. Turn off to hide on your store.</p>
+            </div>
+            <Switch isSelected={pillEnabled} onValueChange={setPillEnabled} color="primary" />
+          </div>
+          {pillEnabled && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Top line" placeholder="e.g. Trending Item" value={pillTop} onValueChange={setPillTop} />
+              <Input label="Bottom line" placeholder="e.g. Rated 4.9 ★ by customers" value={pillBottom} onValueChange={setPillBottom} />
+            </div>
+          )}
+        </div>
       </div>
 
       {slides.map((slide, idx) => (
