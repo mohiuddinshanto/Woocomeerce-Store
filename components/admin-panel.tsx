@@ -2020,12 +2020,13 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name")).trim();
     if (name.length < 2) return toast.error("Category name must be at least 2 characters");
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `category-${Date.now()}`;
     try {
       const res = await api("/api/admin/categories", token, {
         method: "POST",
         body: JSON.stringify({
           name,
-          slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
+          slug,
           parentId: parentId || undefined,
         }),
       });
