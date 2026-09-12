@@ -42,10 +42,33 @@ type FlashDealDef = {
 type HomePageConfigShape = {
   sections: HomeSectionDef[];
   layout?: "classic" | "catalog";
-  categories?: CategoryDisplay;
+  categories?: CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
   flashDeal?: FlashDealDef;
   promoBanners?: PromoBannerDef[];
   trustBadges?: TrustBadgeDef[];
+  testimonials?: {
+    enabled?: boolean;
+    eyebrow?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    items?: { init?: string; name?: string; role?: string; quote?: string; rating?: number }[];
+  };
+  newsletter?: {
+    enabled?: boolean;
+    badge?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    placeholder?: string;
+    button?: string;
+    note?: string;
+  };
+  footer?: {
+    enabled?: boolean;
+    copyright?: string;
+    links?: { label?: string; url?: string }[];
+  };
 };
 
 type Config = {
@@ -80,7 +103,7 @@ type Config = {
   enableIpLimit: boolean;
   cooldownMinutes: number;
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
-  chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
+  chatConfig?: { enabled?: boolean; whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
   homePageConfig?: HomePageConfigShape;
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
@@ -111,6 +134,10 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  announceBadge?: string | null;
+  announceLinkLabel?: string | null;
+  announceLink?: string | null;
+  seconds?: number;
   trendingPill?: {
     enabled?: boolean;
     topText?: string | null;
@@ -2018,6 +2045,10 @@ type CategoryDisplay = {
   seconds?: number;
   pagination?: boolean;
   perView?: { mobile: number; tablet: number; desktop: number };
+  eyebrow?: string;
+  title?: string;
+  accent?: string;
+  countLabel?: string;
 };
 
 function AdminCategories({ token, config, save, saving }: { token: string; config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
@@ -3272,6 +3303,7 @@ function AdminStaff({ token }: { token: string }) {
 function MarketingChatSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
   const pixels = config.marketingPixels ?? {};
   const chat = config.chatConfig ?? {};
+  const [chatEnabled, setChatEnabled] = useState(chat.enabled !== false);
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -3284,6 +3316,7 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
         gtmId: f.get("gtmId") || undefined,
       },
       chatConfig: {
+        enabled: chatEnabled,
         whatsapp: { enabled: true, number: f.get("waNumber") || undefined, template: f.get("waTemplate") || undefined },
         messenger: { enabled: true, url: f.get("messengerUrl") || undefined },
         phone: f.get("phone") || undefined,
@@ -3302,7 +3335,13 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
           <Input label="Google Tag Manager (GTM) ID" name="gtmId" defaultValue={pixels.gtmId} placeholder="GTM-XXXXXX" />
         </div>
         <div className="mt-5 pt-5 border-t border-gray-100 dark:border-white/8">
-          <h3 className="font-display font-bold text-gray-900 dark:text-white mb-4">Floating Customer Chat Widget</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Floating Customer Chat Widget</h3>
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={chatEnabled} onValueChange={setChatEnabled} color="primary" />
+              {chatEnabled ? "Visible on store" : "Hidden"}
+            </label>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" />
             <Input label="WhatsApp Message Template" name="waTemplate" defaultValue={chat.whatsapp?.template} placeholder="Hello, I want to order..." />
@@ -3415,6 +3454,14 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
   const [promosDirty, setPromosDirty] = useState(false);
   const [trust, setTrust] = useState<TrustBadgeDef[]>(config.homePageConfig?.trustBadges?.length ? config.homePageConfig.trustBadges : []);
   const [trustDirty, setTrustDirty] = useState(false);
+  const [catShow, setCatShow] = useState<CategoryDisplay & { eyebrow?: string; title?: string; accent?: string; countLabel?: string }>(config.homePageConfig?.categories ?? {});
+  const [catShowDirty, setCatShowDirty] = useState(false);
+  const [testimonials, setTestimonials] = useState(config.homePageConfig?.testimonials ?? {});
+  const [testimonialsDirty, setTestimonialsDirty] = useState(false);
+  const [newsletter, setNewsletter] = useState(config.homePageConfig?.newsletter ?? {});
+  const [newsletterDirty, setNewsletterDirty] = useState(false);
+  const [footer, setFooter] = useState(config.homePageConfig?.footer ?? {});
+  const [footerDirty, setFooterDirty] = useState(false);
   const [dealProducts, setDealProducts] = useState<{ id: string; name: string; slug: string; salePrice: number | null; price: number }[]>([]);
 
   useEffect(() => {
@@ -3458,6 +3505,26 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
     setTrust(config.homePageConfig?.trustBadges?.length ? [...config.homePageConfig.trustBadges] : []);
     setTrustDirty(false);
   }, [config.homePageConfig?.trustBadges]);
+
+  useEffect(() => {
+    setCatShow(config.homePageConfig?.categories ?? {});
+    setCatShowDirty(false);
+  }, [config.homePageConfig?.categories]);
+
+  useEffect(() => {
+    setTestimonials(config.homePageConfig?.testimonials ?? {});
+    setTestimonialsDirty(false);
+  }, [config.homePageConfig?.testimonials]);
+
+  useEffect(() => {
+    setNewsletter(config.homePageConfig?.newsletter ?? {});
+    setNewsletterDirty(false);
+  }, [config.homePageConfig?.newsletter]);
+
+  useEffect(() => {
+    setFooter(config.homePageConfig?.footer ?? {});
+    setFooterDirty(false);
+  }, [config.homePageConfig?.footer]);
 
   function update(id: string, patch: Partial<HomeSectionDef>) {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -3530,6 +3597,77 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
         subtitle: t.subtitle?.trim() || undefined,
       }));
     save({ homePageConfig: { ...(config.homePageConfig ?? {}), trustBadges: clean.length ? clean : undefined } });
+  }
+
+  function saveCatShow() {
+    const clean: typeof catShow = {
+      ...catShow,
+      mode: catShow.mode && catShow.mode !== "grid" ? catShow.mode : catShow.mode,
+      eyebrow: catShow.eyebrow?.trim() || undefined,
+      title: catShow.title?.trim() || undefined,
+      accent: catShow.accent?.trim() || undefined,
+      countLabel: catShow.countLabel?.trim() || undefined,
+    };
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), categories: clean } });
+  }
+
+  function saveTestimonials() {
+    const items = (testimonials.items ?? [])
+      .filter((t) => (t.name?.trim() || t.quote?.trim()))
+      .map((t) => ({
+        init: t.init?.trim() || undefined,
+        name: t.name?.trim() || undefined,
+        role: t.role?.trim() || undefined,
+        quote: t.quote?.trim() || undefined,
+        rating: Math.max(1, Math.min(5, Number(t.rating) || 5)),
+      }));
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        testimonials: {
+          enabled: testimonials.enabled !== false,
+          eyebrow: testimonials.eyebrow?.trim() || undefined,
+          title: testimonials.title?.trim() || undefined,
+          accent: testimonials.accent?.trim() || undefined,
+          subtitle: testimonials.subtitle?.trim() || undefined,
+          items: items.length ? items : undefined,
+        },
+      },
+    });
+  }
+
+  function saveNewsletter() {
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        newsletter: {
+          enabled: newsletter.enabled !== false,
+          badge: newsletter.badge?.trim() || undefined,
+          title: newsletter.title?.trim() || undefined,
+          accent: newsletter.accent?.trim() || undefined,
+          subtitle: newsletter.subtitle?.trim() || undefined,
+          placeholder: newsletter.placeholder?.trim() || undefined,
+          button: newsletter.button?.trim() || undefined,
+          note: newsletter.note?.trim() || undefined,
+        },
+      },
+    });
+  }
+
+  function saveFooter() {
+    const links = (footer.links ?? [])
+      .filter((l) => l.label?.trim())
+      .map((l) => ({ label: l.label?.trim() || undefined, url: l.url?.trim() || undefined }));
+    save({
+      homePageConfig: {
+        ...(config.homePageConfig ?? {}),
+        footer: {
+          enabled: footer.enabled !== false,
+          copyright: footer.copyright?.trim() || undefined,
+          links: links.length ? links : undefined,
+        },
+      },
+    });
   }
 
   return (
@@ -3745,6 +3883,213 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
         )}
       </div>
 
+      {/* CATEGORY SHOWCASE */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Shop by Category Showcase</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The "SHOP BY CATEGORY" grid/carousel on the home page. Edits both heading and display mode.
+            </p>
+          </div>
+          {catShowDirty && (
+            <button
+              type="button"
+              onClick={saveCatShow}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Showcase
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Input label="Eyebrow" placeholder="SHOP BY CATEGORY" value={catShow.eyebrow ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, eyebrow: v })); setCatShowDirty(true); }} />
+          <Input label="Title" placeholder="Curated collections," value={catShow.title ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, title: v })); setCatShowDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="organized for you." value={catShow.accent ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, accent: v })); setCatShowDirty(true); }} />
+          <Input label="Count label" placeholder="CATEGORIES" value={catShow.countLabel ?? ""} onValueChange={(v) => { setCatShow((s) => ({ ...s, countLabel: v })); setCatShowDirty(true); }} />
+          <Select
+            label="Display mode"
+            selectedKeys={[catShow.mode ?? "grid"]}
+            onSelectionChange={(keys) => { setCatShow((s) => ({ ...s, mode: (Array.from(keys as Set<string>)[0] as CategoryDisplay["mode"]) ?? "grid" })); setCatShowDirty(true); }}
+          >
+            <SelectItem key="grid">Grid</SelectItem>
+            <SelectItem key="carousel">Carousel (manual)</SelectItem>
+            <SelectItem key="loop">Carousel (auto-loop)</SelectItem>
+          </Select>
+          <Input
+            type="number"
+            label="Auto-slide seconds"
+            min={1}
+            max={60}
+            value={String(catShow.seconds ?? 3)}
+            onValueChange={(v) => { setCatShow((s) => ({ ...s, seconds: Math.max(1, Math.min(60, Number(v) || 3)) })); setCatShowDirty(true); }}
+          />
+        </div>
+      </div>
+
+      {/* TESTIMONIALS */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Customer Testimonials</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The "Customer Chronicles" reviews section. Turn it off, edit copy, or add your own reviews.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={testimonials.enabled !== false} onValueChange={(v) => { setTestimonials((t) => ({ ...t, enabled: v })); setTestimonialsDirty(true); }} color="primary" />
+              Show section
+            </label>
+            {testimonialsDirty && (
+              <button
+                type="button"
+                onClick={saveTestimonials}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Testimonials
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Eyebrow" placeholder="CUSTOMER CHRONICLES" value={testimonials.eyebrow ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, eyebrow: v })); setTestimonialsDirty(true); }} />
+          <Input label="Subtitle" placeholder="Real stories from customers…" value={testimonials.subtitle ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, subtitle: v })); setTestimonialsDirty(true); }} />
+          <Input label="Title" placeholder="Loved by" value={testimonials.title ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, title: v })); setTestimonialsDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="thousands." value={testimonials.accent ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, accent: v })); setTestimonialsDirty(true); }} />
+        </div>
+        {(testimonials.items ?? []).map((item, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Review {i + 1}</span>
+              <button
+                type="button"
+                onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).filter((_, bi) => bi !== i) })); setTestimonialsDirty(true); }}
+                className="text-xs text-red-500 font-semibold hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <Input label="Name" placeholder="Tasnim Mahbub" value={item.name ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, name: v } : x)) })); setTestimonialsDirty(true); }} />
+              <Input label="Initials" placeholder="TM" value={item.init ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, init: v } : x)) })); setTestimonialsDirty(true); }} />
+              <Input label="Role" placeholder="Verified Buyer • Dhaka" value={item.role ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, role: v } : x)) })); setTestimonialsDirty(true); }} />
+              <div className="min-w-0">
+                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Rating (1–5)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={String(item.rating ?? 5)}
+                  onChange={(e) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, rating: Number(e.target.value) } : x)) })); setTestimonialsDirty(true); }}
+                  className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-sm outline-none focus:border-primary/50"
+                />
+              </div>
+              <Textarea label="Quote" placeholder="The product felt premium…" value={item.quote ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, quote: v } : x)) })); setTestimonialsDirty(true); }} className="sm:col-span-4" />
+            </div>
+          </div>
+        ))}
+        {(testimonials.items ?? []).length < 12 && (
+          <button
+            type="button"
+            onClick={() => { setTestimonials((t) => ({ ...t, items: [...(t.items ?? []), { name: "", init: "", role: "", quote: "", rating: 5 }] })); setTestimonialsDirty(true); }}
+            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+          >
+            <FiPlus /> Add Review
+          </button>
+        )}
+      </div>
+
+      {/* NEWSLETTER */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Newsletter Signup</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The email signup section above the footer. Subscriptions are stored on the server.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={newsletter.enabled !== false} onValueChange={(v) => { setNewsletter((n) => ({ ...n, enabled: v })); setNewsletterDirty(true); }} color="primary" />
+              Show section
+            </label>
+            {newsletterDirty && (
+              <button
+                type="button"
+                onClick={saveNewsletter}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Newsletter
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Badge pill" placeholder="Exclusive drops" value={newsletter.badge ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, badge: v })); setNewsletterDirty(true); }} />
+          <Input label="Title" placeholder="Private sale" value={newsletter.title ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, title: v })); setNewsletterDirty(true); }} />
+          <Input label="Accent (highlighted)" placeholder="alerts & offers." value={newsletter.accent ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, accent: v })); setNewsletterDirty(true); }} />
+          <Input label="Placeholder" placeholder="Enter your email…" value={newsletter.placeholder ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, placeholder: v })); setNewsletterDirty(true); }} />
+          <Input label="Button text" placeholder="Subscribe" value={newsletter.button ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, button: v })); setNewsletterDirty(true); }} />
+          <Input label="Note (below form)" placeholder="No spam. One-click unsubscribe anytime." value={newsletter.note ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, note: v })); setNewsletterDirty(true); }} />
+          <Textarea label="Subtitle" placeholder="Early access to limited drops…" value={newsletter.subtitle ?? ""} onValueChange={(v) => { setNewsletter((n) => ({ ...n, subtitle: v })); setNewsletterDirty(true); }} className="sm:col-span-2" />
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Footer</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              Copyright text and footer links. Turn it off to hide the footer entirely.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={footer.enabled !== false} onValueChange={(v) => { setFooter((f) => ({ ...f, enabled: v })); setFooterDirty(true); }} color="primary" />
+              Show footer
+            </label>
+            {footerDirty && (
+              <button
+                type="button"
+                onClick={saveFooter}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Footer
+              </button>
+            )}
+          </div>
+        </div>
+        <Input label="Copyright text" placeholder="© 2026 EPIC Store. Everyday premium essentials from Bangladesh." value={footer.copyright ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, copyright: v })); setFooterDirty(true); }} />
+        {(footer.links ?? []).map((l, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+            <Input label="Label" placeholder="Privacy Notice" value={l.label ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, label: v } : x)) })); setFooterDirty(true); }} />
+            <Input label="URL" placeholder="/ or #shop or https://…" value={l.url ?? ""} onValueChange={(v) => { setFooter((f) => ({ ...f, links: (f.links ?? []).map((x, xi) => (xi === i ? { ...x, url: v } : x)) })); setFooterDirty(true); }} />
+            <div className="flex items-end pb-1">
+              <button
+                type="button"
+                onClick={() => { setFooter((f) => ({ ...f, links: (f.links ?? []).filter((_, bi) => bi !== i) })); setFooterDirty(true); }}
+                className="text-xs text-red-500 font-semibold hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => { setFooter((f) => ({ ...f, links: [...(f.links ?? []), { label: "", url: "" }] })); setFooterDirty(true); }}
+          className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+        >
+          <FiPlus /> Add Footer Link
+        </button>
+      </div>
+
       <div>
         <button
           type="button"
@@ -3937,6 +4282,10 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
   const [pillEnabled, setPillEnabled] = useState(current.trendingPill?.enabled !== false);
   const [pillTop, setPillTop] = useState(current.trendingPill?.topText ?? "Trending Item");
   const [pillBottom, setPillBottom] = useState(current.trendingPill?.bottomText ?? "Rated 4.9 ★ by customers");
+  const [announceBadge, setAnnounceBadge] = useState(current.announceBadge ?? "Festive Drop 2026");
+  const [announceLinkLabel, setAnnounceLinkLabel] = useState(current.announceLinkLabel ?? "Explore Drops");
+  const [announceLink, setAnnounceLink] = useState(current.announceLink ?? "#categories");
+  const [heroSeconds, setHeroSeconds] = useState(String(current.seconds ?? 6));
 
   type SlideData = {
     id: string;
@@ -4058,6 +4407,10 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
       heroBannerConfig: {
         enabled,
         announceText: announceText || null,
+        announceBadge: announceBadge || null,
+        announceLinkLabel: announceLinkLabel || null,
+        announceLink: announceLink || null,
+        seconds: Math.max(2, Math.min(30, Number(heroSeconds) || 6)),
         trendingPill: {
           enabled: pillEnabled,
           topText: pillTop || null,
@@ -4088,6 +4441,22 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
           <Switch isSelected={enabled} onValueChange={setEnabled} color="primary" />
         </div>
         <Input label="Top announcement text" placeholder="e.g. ঈদ ও উৎসব কালেকশন…" value={announceText} onValueChange={setAnnounceText} description="Shown above the header. Leave empty to hide." />
+        {announceText && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+            <Input label="Badge pill text" placeholder="Festive Drop 2026" value={announceBadge} onValueChange={setAnnounceBadge} />
+            <Input label="Link text" placeholder="Explore Drops" value={announceLinkLabel} onValueChange={setAnnounceLinkLabel} />
+            <Input label="Link URL" placeholder="#categories" value={announceLink} onValueChange={setAnnounceLink} />
+          </div>
+        )}
+        <Input
+          type="number"
+          label="Hero carousel seconds (auto-slide interval)"
+          min={2}
+          max={30}
+          value={heroSeconds}
+          onValueChange={setHeroSeconds}
+          description="Seconds each banner shows before auto-sliding."
+        />
 
         <div className="rounded-xl border border-gray-100 dark:border-white/6 bg-gray-50/60 dark:bg-white/3 p-4">
           <div className="flex items-center justify-between gap-4">

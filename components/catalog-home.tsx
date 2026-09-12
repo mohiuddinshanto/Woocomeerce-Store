@@ -305,6 +305,7 @@ export function CatalogHome({
   products,
   categories,
   heroSlides,
+  heroSeconds,
   allowAddToCart,
   whatsapp,
   add,
@@ -316,6 +317,7 @@ export function CatalogHome({
   products: Product[];
   categories: Category[];
   heroSlides: HeroSlide[];
+  heroSeconds?: number;
   allowAddToCart: boolean;
   whatsapp: string | null;
   add: (p: Product, variation?: Variation) => void;
@@ -473,7 +475,7 @@ export function CatalogHome({
                 </div>
               </div>
             ))}
-            seconds={5}
+            seconds={heroSeconds ?? 5}
             auto={heroSlides.length > 1}
             loop={heroSlides.length > 1}
             perView={{ mobile: 1, tablet: 1, desktop: 1 }}

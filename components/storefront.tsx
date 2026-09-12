@@ -36,6 +36,8 @@ import {
   FiX,
   FiMenu,
   FiZap,
+  FiCheck,
+  FiHeadphones,
 } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -89,6 +91,7 @@ type CartItem = {
 };
 
 type ChatConfig = {
+  enabled?: boolean;
   whatsapp?: { enabled?: boolean; number?: string; template?: string };
   messenger?: { enabled?: boolean; url?: string };
   phone?: string;
@@ -147,7 +150,37 @@ type TrustBadgeConfig = {
   subtitle?: string;
 };
 
-type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog"; categories?: CategoryDisplayConfig; flashDeal?: FlashDealConfig; promoBanners?: PromoBannerConfig[]; trustBadges?: TrustBadgeConfig[] };
+type HomePageConfig = {
+  sections: HomeSection[];
+  layout?: "classic" | "catalog";
+  categories?: CategoryDisplayConfig & { eyebrow?: string; title?: string; accent?: string; countLabel?: string };
+  flashDeal?: FlashDealConfig;
+  promoBanners?: PromoBannerConfig[];
+  trustBadges?: TrustBadgeConfig[];
+  testimonials?: {
+    enabled?: boolean;
+    eyebrow?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    items?: { init?: string; name?: string; role?: string; quote?: string; rating?: number }[];
+  };
+  newsletter?: {
+    enabled?: boolean;
+    badge?: string;
+    title?: string;
+    accent?: string;
+    subtitle?: string;
+    placeholder?: string;
+    button?: string;
+    note?: string;
+  };
+  footer?: {
+    enabled?: boolean;
+    copyright?: string;
+    links?: { label?: string; url?: string }[];
+  };
+};
 
 type HeroBannerConfig = {
   enabled?: boolean;
@@ -161,6 +194,10 @@ type HeroBannerConfig = {
   secondaryLabel?: string | null;
   secondaryLink?: string | null;
   announceText?: string | null;
+  announceBadge?: string | null;
+  announceLinkLabel?: string | null;
+  announceLink?: string | null;
+  seconds?: number;
   trendingPill?: {
     enabled?: boolean;
     topText?: string | null;
@@ -207,6 +244,55 @@ const DEFAULT_HERO: Required<Pick<HeroBannerConfig, "badge" | "title" | "accent"
 };
 
 const money = (v: number | string) => `৳ ${Number(v).toLocaleString("en-BD")}`;
+
+const TRUST_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
+  shield: FiShield,
+  truck: FiTruck,
+  refresh: FiRefreshCw,
+  check: FiCheck,
+  clock: FiClock,
+  star: FiStar,
+  headset: FiHeadphones,
+  chat: FiMessageCircle,
+};
+
+const DEFAULT_TRUST_BADGES: TrustBadgeConfig[] = [
+  { enabled: true, icon: "shield", title: "100% Genuine", subtitle: "Origin-checked quality" },
+  { enabled: true, icon: "truck", title: "Express BD Delivery", subtitle: "All 64 districts in 2–4 days" },
+  { enabled: true, icon: "check", title: "Flexible Payment", subtitle: "COD, bKash, Nagad, Cards" },
+  { enabled: true, icon: "refresh", title: "Easy Exchange", subtitle: "7-day hassle-free returns" },
+];
+
+const DEFAULT_FOOTER_LINKS = [
+  { label: "Privacy Notice", url: "/" },
+  { label: "Terms of Service", url: "/" },
+  { label: "Shipping", url: "#shop" },
+  { label: "Contact", url: "/account" },
+];
+
+const DEFAULT_TESTIMONIALS = [
+  {
+    init: "TM",
+    name: "Tasnim Mahbub",
+    role: "Verified Buyer • Dhaka",
+    quote:
+      "The linen shirt felt premium the moment I opened the box. Delivery to Dhanmondi took just two days — quality and speed both exceeded expectations.",
+  },
+  {
+    init: "SR",
+    name: "Sakib Rahman",
+    role: "Verified Buyer • Chattogram",
+    quote:
+      "Ordered the sneakers during the festive drop and got a solid discount. Comfort is real — I wear them daily. bKash checkout was effortless.",
+  },
+  {
+    init: "NF",
+    name: "Nusrat Faria",
+    role: "Boutique Owner • Sylhet",
+    quote:
+      "We stock EPIC essentials for our boutique clients. Consistent quality, honest pricing, and their exchange policy keeps our customers happy.",
+  },
+];
 
 const scrollToId = (link: string) => {
   const id = link.replace(/^#/, "");
@@ -281,6 +367,8 @@ export function Storefront() {
   const [homeConfig, setHomeConfig] = useState<HomePageConfig | null>(null);
   const [bannerConfig, setBannerConfig] = useState<HeroBannerConfig | null>(null);
   const [navMenus, setNavMenus] = useState<MenuItem[]>([]);
+  const [storeName, setStoreName] = useState("EPIC");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [allowAddToCart, setAllowAddToCart] = useState(true);
 
   useEffect(() => {
@@ -296,6 +384,8 @@ export function Storefront() {
         if (status?.config?.homePageConfig) setHomeConfig(status.config.homePageConfig);
         if (status?.config?.heroBannerConfig) setBannerConfig(status.config.heroBannerConfig);
         if (status?.config?.navigationConfig?.menus?.[0]?.items) setNavMenus(status.config.navigationConfig.menus[0].items);
+        if (typeof status?.config?.storeName === "string" && status.config.storeName.trim()) setStoreName(status.config.storeName.trim());
+        if (status?.config?.logoUrl) setLogoUrl(status.config.logoUrl);
         setAllowAddToCart(status?.config?.featureFlags?.addToCart !== false);
       })
       .catch(() => {});
@@ -445,6 +535,10 @@ export function Storefront() {
     return {
       enabled: bannerConfig?.enabled !== false,
       announceText: bannerConfig?.announceText ?? DEFAULT_HERO.announceText,
+      announceBadge: bannerConfig?.announceBadge ?? "Festive Drop 2026",
+      announceLinkLabel: bannerConfig?.announceLinkLabel ?? "Explore Drops",
+      announceLink: bannerConfig?.announceLink ?? "#categories",
+      seconds: Math.max(2, Math.min(30, Number(bannerConfig?.seconds) || 6)),
       trendingPill: bannerConfig?.trendingPill ?? {},
       slides,
     };
@@ -591,16 +685,16 @@ export function Storefront() {
         <aside className="flex flex-wrap items-center justify-center gap-3 border-b border-slate-200/70 bg-slate-50 px-4 py-2 text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/25 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-primary">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-            Festive Drop 2026
+            {hero.announceBadge}
           </span>
           <span className="text-[0.8rem] font-medium text-slate-500">
             {hero.announceText}
           </span>
           <Link
-            href="#categories"
+            href={hero.announceLink}
             className="inline-flex items-center gap-1 text-[0.8rem] font-bold text-primary hover:underline"
           >
-            Explore Drops <FiArrowRight size={13} />
+            {hero.announceLinkLabel} <FiArrowRight size={13} />
           </Link>
         </aside>
       )}
@@ -616,10 +710,15 @@ export function Storefront() {
         </button>
 
         <Link href="/" className="brand">
-          <span className="mr-2 inline-block h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-center font-display text-lg font-black leading-9 text-white shadow-md shadow-indigo-500/30">
-            E
-          </span>
-          EPIC<span>.</span>
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={storeName} className="mr-2 inline-block h-9 w-9 rounded-xl object-contain" />
+          ) : (
+            <span className="mr-2 inline-block h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-center font-display text-lg font-black leading-9 text-white shadow-md shadow-indigo-500/30">
+              {storeName.charAt(0).toUpperCase()}
+            </span>
+          )}
+          {storeName}
         </Link>
 
         <div className="nav-links">
@@ -716,6 +815,7 @@ export function Storefront() {
           products={products}
           categories={categories}
           heroSlides={hero.slides}
+          heroSeconds={hero.seconds}
           allowAddToCart={allowAddToCart}
           whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null}
           add={add}
@@ -764,16 +864,16 @@ export function Storefront() {
                     </div>
 
                     {hero.trendingPill?.enabled !== false && (
-                      <div className="absolute right-8 top-8 z-10 hidden animate-float md:block">
-                        <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/85 p-3.5 pr-5 shadow-lg backdrop-blur-md">
-                          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-xl text-white">
+                      <div className="absolute right-3 top-3 z-10 animate-float sm:right-8 sm:top-8">
+                        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-white/60 bg-white/85 px-2.5 py-2 backdrop-blur-md sm:flex-row sm:gap-3 sm:p-3.5 sm:pr-5 sm:px-3.5">
+                          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primary to-cyan text-lg text-white sm:h-11 sm:w-11 sm:text-xl">
                             🔥
                           </div>
-                          <div>
-                            <strong className="block text-sm text-slate-900">
+                          <div className="max-w-[120px] text-center sm:max-w-none sm:text-left">
+                            <strong className="block text-[0.7rem] leading-tight text-slate-900 sm:text-sm">
                               {hero.trendingPill?.topText || "Trending Item"}
                             </strong>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-[0.65rem] text-slate-400 sm:text-xs">
                               {hero.trendingPill?.bottomText || "Rated 4.9 ★ by customers"}
                             </span>
                           </div>
@@ -782,7 +882,7 @@ export function Storefront() {
                     )}
                   </div>
                 ))}
-                seconds={6}
+                seconds={hero.seconds}
                 auto={hero.slides.length > 1}
                 loop={hero.slides.length > 1}
                 perView={{ mobile: 1, tablet: 1, desktop: 1 }}
@@ -797,22 +897,22 @@ export function Storefront() {
       {/* Trust & Value Propositions */}
       <section className="border-b border-slate-100 bg-white py-6">
         <div className="mx-auto grid max-w-[1400px] grid-cols-2 gap-6 px-[6vw] md:grid-cols-4">
-          {[
-            { icon: <FiShield size={22} />, title: "100% Genuine", sub: "Origin-checked quality" },
-            { icon: <FiTruck size={22} />, title: "Express BD Delivery", sub: "All 64 districts in 2–4 days" },
-            { icon: <FiCreditCard size={22} />, title: "Flexible Payment", sub: "COD, bKash, Nagad, Cards" },
-            { icon: <FiRefreshCw size={22} />, title: "Easy Exchange", sub: "7-day hassle-free returns" },
-          ].map((t) => (
-            <div key={t.title} className="flex items-center gap-3">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-100 bg-slate-50 text-primary">
-                {t.icon}
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">{t.title}</h3>
-                <p className="text-xs text-slate-400">{t.sub}</p>
-              </div>
-            </div>
-          ))}
+          {(homeConfig?.trustBadges && homeConfig.trustBadges.length > 0 ? homeConfig.trustBadges : DEFAULT_TRUST_BADGES)
+              .filter((t) => t.enabled !== false)
+              .map((t) => {
+                const Icon = TRUST_ICONS[t.icon ?? "shield"] ?? FiShield;
+                return (
+                  <div key={t.title || t.icon} className="flex items-center gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-100 bg-slate-50 text-primary">
+                      <Icon size={22} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">{t.title}</h3>
+                      <p className="text-xs text-slate-400">{t.subtitle}</p>
+                    </div>
+                  </div>
+                );
+              })}
         </div>
       </section>
 
@@ -820,15 +920,15 @@ export function Storefront() {
       <section id="categories" className="mx-auto max-w-[1400px] px-[6vw] py-10">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
-            <span className="eyebrow">SHOP BY CATEGORY</span>
+            <span className="eyebrow">{categoryConfig.eyebrow ?? "SHOP BY CATEGORY"}</span>
             <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-900">
-              Curated collections,
-              <span className="gradient-text"> organized for you.</span>
+              {categoryConfig.title ?? "Curated collections,"}
+              <span className="gradient-text"> {categoryConfig.accent ?? "organized for you."}</span>
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-400">
-              {categorySections.length} CATEGORIES
+              {categorySections.length} {categoryConfig.countLabel ?? "CATEGORIES"}
             </span>
           </div>
         </div>
@@ -1054,110 +1154,120 @@ export function Storefront() {
       )}
 
       {/* Customer Reviews */}
-      <section className="border-t border-slate-100 bg-slate-50 py-16">
-        <div className="mx-auto max-w-[1400px] px-[6vw]">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <span className="eyebrow justify-center">CUSTOMER CHRONICLES</span>
-            <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
-              Loved by <span className="gradient-text">thousands.</span>
-            </h2>
-            <p className="muted mt-2">
-              Real stories from customers across Bangladesh and beyond.
-            </p>
-          </div>
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                init: "TM",
-                name: "Tasnim Mahbub",
-                role: "Verified Buyer • Dhaka",
-                quote:
-                  "The linen shirt felt premium the moment I opened the box. Delivery to Dhanmondi took just two days — quality and speed both exceeded expectations.",
-              },
-              {
-                init: "SR",
-                name: "Sakib Rahman",
-                role: "Verified Buyer • Chattogram",
-                quote:
-                  "Ordered the sneakers during the festive drop and got a solid discount. Comfort is real — I wear them daily. bKash checkout was effortless.",
-              },
-              {
-                init: "NF",
-                name: "Nusrat Faria",
-                role: "Boutique Owner • Sylhet",
-                quote:
-                  "We stock EPIC essentials for our boutique clients. Consistent quality, honest pricing, and their exchange policy keeps our customers happy.",
-              },
-            ].map((r) => (
-              <div
-                key={r.name}
-                className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
-              >
-                <div className="mb-4 flex items-center gap-1 text-amber-400">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <FiStar key={i} fill="currentColor" />
-                  ))}
-                </div>
-                <p className="mb-6 text-[0.95rem] italic leading-relaxed text-slate-600">
-                  “{r.quote}”
+      {(() => {
+        const cfg = homeConfig?.testimonials ?? {};
+        const items = cfg.items && cfg.items.length > 0 ? cfg.items : DEFAULT_TESTIMONIALS;
+        if (cfg.enabled === false || !items.length) return null;
+        return (
+          <section className="border-t border-slate-100 bg-slate-50 py-16">
+            <div className="mx-auto max-w-[1400px] px-[6vw]">
+              <div className="mx-auto mb-12 max-w-2xl text-center">
+                <span className="eyebrow justify-center">{cfg.eyebrow ?? "CUSTOMER CHRONICLES"}</span>
+                <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
+                  {cfg.title ?? "Loved by"} <span className="gradient-text">{cfg.accent ?? "thousands."}</span>
+                </h2>
+                <p className="muted mt-2">
+                  {cfg.subtitle ?? "Real stories from customers across Bangladesh and beyond."}
                 </p>
-                <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-xs font-bold text-white">
-                    {r.init}
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">{r.name}</h4>
-                    <p className="text-xs text-slate-400">{r.role}</p>
-                  </div>
-                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <div className="grid gap-6 md:grid-cols-3">
+                {items.map((r) => (
+                  <div
+                    key={r.name || r.quote}
+                    className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <div className="mb-4 flex items-center gap-1 text-amber-400">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <FiStar key={i} fill="currentColor" />
+                      ))}
+                    </div>
+                    <p className="mb-6 text-[0.95rem] italic leading-relaxed text-slate-600">
+                      “{r.quote}”
+                    </p>
+                    <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
+                      <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-xs font-bold text-white">
+                        {r.init}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">{r.name}</h4>
+                        <p className="text-xs text-slate-400">{r.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Newsletter */}
-      <section className="border-t border-slate-100 bg-white py-16">
-        <div className="mx-auto max-w-2xl space-y-5 px-[6vw] text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-            <FiCheckCircle size={13} /> Exclusive drops
-          </span>
-          <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
-            Private sale <span className="gradient-text">alerts & offers.</span>
-          </h2>
-          <p className="muted mx-auto max-w-lg">
-            Early access to limited drops, restocks, and members-only discounts — straight to your inbox.
-          </p>
-          <NewsletterForm />
-          <p className="text-xs text-slate-500">
-            No spam. One-click unsubscribe anytime.
-          </p>
-        </div>
-      </section>
+      {(() => {
+        const cfg = homeConfig?.newsletter ?? {};
+        if (cfg.enabled === false) return null;
+        return (
+          <section className="border-t border-slate-100 bg-white py-16">
+            <div className="mx-auto max-w-2xl space-y-5 px-[6vw] text-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+                <FiCheckCircle size={13} /> {cfg.badge ?? "Exclusive drops"}
+              </span>
+              <h2 className="font-display text-4xl font-extrabold tracking-tight text-slate-900">
+                {cfg.title ?? "Private sale"} <span className="gradient-text">{cfg.accent ?? "alerts & offers."}</span>
+              </h2>
+              <p className="muted mx-auto max-w-lg">
+                {cfg.subtitle ?? "Early access to limited drops, restocks, and members-only discounts — straight to your inbox."}
+              </p>
+              <NewsletterForm config={cfg} />
+              <p className="text-xs text-slate-500">
+                {cfg.note ?? "No spam. One-click unsubscribe anytime."}
+              </p>
+            </div>
+          </section>
+        );
+      })()}
         </>
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-slate-50 pb-16 md:pb-0">
-        <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-[6vw] py-8 text-center sm:flex-row sm:text-left">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="brand">
-              EPIC<span>.</span>
-            </Link>
-            <span className="hidden text-slate-300 sm:inline">•</span>
-            <p className="text-sm text-slate-400">
-              © 2026 EPIC Store. Everyday premium essentials from Bangladesh.
-            </p>
-          </div>
-          <nav className="flex flex-wrap items-center justify-center gap-6">
-            {["Privacy Notice", "Terms of Service", "Shipping", "Contact"].map((l) => (
-              <Link key={l} href="/" className="text-sm text-slate-400 transition-colors hover:text-primary">
-                {l}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </footer>
+      {(() => {
+        const cfg = homeConfig?.footer ?? {};
+        if (cfg.enabled === false) return null;
+        const links = cfg.links && cfg.links.length > 0 ? cfg.links : DEFAULT_FOOTER_LINKS;
+        return (
+          <footer className="border-t border-slate-200 bg-slate-50 pb-16 md:pb-0">
+            <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-[6vw] py-8 text-center sm:flex-row sm:text-left">
+              <div className="flex items-center gap-3">
+                <Link href="/" className="brand">
+                  {storeName}
+                </Link>
+                <span className="hidden text-slate-300 sm:inline">•</span>
+                <p className="text-sm text-slate-400">
+                  {cfg.copyright ?? `© ${new Date().getFullYear()} ${storeName}. Everyday premium essentials from Bangladesh.`}
+                </p>
+              </div>
+              <nav className="flex flex-wrap items-center justify-center gap-6">
+                {links.map((l) => (
+                  <Link
+                    key={l.label || l.url}
+                    href={l.url || "/"}
+                    onClick={(e) => {
+                      const href = l.url || "/";
+                      if (href.startsWith("#")) {
+                        e.preventDefault();
+                        const id = href.slice(1);
+                        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+                      }
+                    }}
+                    className="text-sm text-slate-400 transition-colors hover:text-primary"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          </footer>
+        );
+      })()}
 
       {/* Mobile Sticky Cart Bar */}
       {totalCount > 0 && (
@@ -1186,14 +1296,15 @@ export function Storefront() {
       )}
 
       {/* Floating Customer Chat Widget */}
-      <div className="chat-widget" style={{ position: "fixed", bottom: "28px", right: "28px", zIndex: 45 }}>
+      {chatConfig?.enabled !== false && (chatConfig?.whatsapp?.number || chatConfig?.messenger?.url || chatConfig?.phone) && (
+      <div className="chat-widget" style={{ position: "fixed", bottom: "max(28px, env(safe-area-inset-bottom, 0px))", right: "16px", zIndex: 45 }}>
         {chatOpen && (
           <div
             style={{
               position: "absolute",
               bottom: "70px",
               right: 0,
-              width: "280px",
+              width: "min(280px, calc(100vw - 32px))",
               background: "#ffffff",
               borderRadius: "18px",
               boxShadow: "var(--shadow-lg)",
@@ -1302,6 +1413,7 @@ export function Storefront() {
           {chatOpen ? <FiX /> : <FiMessageCircle />}
         </button>
       </div>
+      )}
 
       {/* Cart Slide-over Panel */}
       {open && (
@@ -1574,13 +1686,27 @@ function MiniProductCard({
   );
 }
 
-function NewsletterForm() {
+function NewsletterForm({ config }: { config: NonNullable<HomePageConfig["newsletter"]> }) {
   const [email, setEmail] = useState("");
-  function submit(e: React.FormEvent) {
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.includes("@")) return;
-    setEmail("");
-    toast.success("ধন্যবাদ! VIP তালিকায় আপনার ইমেইল যুক্ত হয়েছে।");
+    setStatus("loading");
+    try {
+      const res = await fetch(`${apiUrl}/api/newsletter/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error();
+      setStatus("done");
+      setEmail("");
+      toast.success("ধন্যবাদ! VIP তালিকায় আপনার ইমেইল যুক্ত হয়েছে।");
+    } catch {
+      setStatus("error");
+      toast.error("সাবস্ক্রিপশন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।");
+    }
   }
   return (
     <form
@@ -1594,15 +1720,16 @@ function NewsletterForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="আপনার ইমেইল দিন (Enter your email)..."
+          placeholder={config.placeholder ?? "আপনার ইমেইল দিন (Enter your email)..."}
           className="w-full rounded-full border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
         />
       </div>
       <button
         type="submit"
-        className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 active:scale-[0.98] sm:w-auto"
+        disabled={status === "loading"}
+        className="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-gradient-to-r from-primary to-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 sm:w-auto"
       >
-        Subscribe <FiArrowRight size={16} />
+        {config.button ?? "Subscribe"} <FiArrowRight size={16} />
       </button>
     </form>
   );
