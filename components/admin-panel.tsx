@@ -2402,6 +2402,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [openCourier, setOpenCourier] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
+  const [sfBalance, setSfBalance] = useState<number | null>(null);
+  const [sfBalVisible, setSfBalVisible] = useState(false);
+  const [loadingBal, setLoadingBal] = useState(false);
 
   const load = () => {
     api("/api/admin/orders", token)
@@ -2544,6 +2547,18 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     }
   }
 
+  async function fetchSfBalance() {
+    setLoadingBal(true);
+    try {
+      const res = await api("/api/admin/steadfast/balance", token);
+      const data = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
+      if (res.ok && typeof data.balance === "number") setSfBalance(data.balance);
+      else toast.error(data.error || "Balance load করা যায়নি");
+    } finally {
+      setLoadingBal(false);
+    }
+  }
+
   function printOrder(o: Order) {
     const sd = o.shippingDetails ?? {};
     const items = o.orderItems ?? [];
@@ -2600,9 +2615,32 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {couriers.some((c) => c.key === "steadfast") && (
-            <Button size="sm" variant="flat" onPress={syncAllSteadfast} isLoading={syncingAll}>
-              <FiRefreshCw size={12} /> Sync Steadfast
-            </Button>
+            <>
+              <Button size="sm" variant="flat" onPress={syncAllSteadfast} isLoading={syncingAll}>
+                <FiRefreshCw size={12} /> Sync Steadfast
+              </Button>
+              <div
+                onClick={() => sfBalance === null && !loadingBal && fetchSfBalance()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-white/4 border border-gray-100 dark:border-white/6 text-gray-600 dark:text-slate-300 cursor-pointer"
+                title="SteadFast একাউন্ট ব্যালেন্স (ক্লিক করে load করুন)"
+              >
+                <FiBox size={12} className="text-primary" />
+                <span>SF Balance</span>
+                <span className="font-mono font-bold text-gray-900 dark:text-white">
+                  {loadingBal ? <FiRefreshCw size={12} className="animate-spin" /> : sfBalance !== null ? (sfBalVisible ? money(sfBalance) : "৳ •••") : "—"}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSfBalVisible((v) => !v);
+                  }}
+                  className="ml-0.5 flex items-center justify-center w-4 h-4 rounded hover:bg-gray-100 dark:hover:bg-white/10"
+                  title={sfBalVisible ? "ব্যালেন্স লুকান" : "ব্যালেন্স দেখুন"}
+                >
+                  {sfBalVisible ? <FiEyeOff size={12} /> : <FiEye size={12} />}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
