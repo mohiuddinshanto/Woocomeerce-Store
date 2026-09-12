@@ -2020,7 +2020,8 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name")).trim();
     if (name.length < 2) return toast.error("Category name must be at least 2 characters");
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `category-${Date.now()}`;
+    const slugRaw = String(f.get("slug") || "").trim();
+    const slug = slugRaw || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `category-${Date.now()}`;
     try {
       const res = await api("/api/admin/categories", token, {
         method: "POST",
@@ -2267,6 +2268,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
       {creating && (
         <form onSubmit={createCategory} className="p-5 bg-gray-50 dark:bg-white/4 rounded-xl border border-gray-200 dark:border-white/8 space-y-4">
           <Input label="Category Name" name="name" isRequired placeholder="e.g. T-Shirts, Men's Wear, Shoes..." />
+          <Input label="Slug (Optional – auto-generated if empty)" name="slug" placeholder="e.g. t-shirts" />
           <Select label="Parent Category (Optional)" aria-label="Parent category" selectedKeys={parentId ? [parentId] : []} onChange={(e) => setParentId(e.target.value)}>
             <>
               <SelectItem key="none" textValue="none">
