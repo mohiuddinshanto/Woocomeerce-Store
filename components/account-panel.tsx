@@ -46,6 +46,17 @@ function initials(name: string) {
   return (parts[0]?.[0] ?? "").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase();
 }
 
+const ORDER_LABEL: Record<string, string> = {
+  PENDING: "অপেক্ষমান",
+  CONFIRMED: "নিশ্চিত",
+  PACKED: "প্যাক করা হয়েছে",
+  SENT: "কুরিয়ারে পাঠানো হয়েছে",
+  SHIPPED: "পাঠানো হয়েছে",
+  DELIVERED: "ডেলিভারি সম্পন্ন",
+  CANCELLED: "বাতিল",
+  RETURNED: "ফেরত আসা হয়েছে",
+};
+
 function StatusChip({ status }: { status: string }) {
   const s = status.toLowerCase();
   const palette =
@@ -61,7 +72,7 @@ function StatusChip({ status }: { status: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${palette}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {status}
+      {ORDER_LABEL[status] ?? status}
     </span>
   );
 }

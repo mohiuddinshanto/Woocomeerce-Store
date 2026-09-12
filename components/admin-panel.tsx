@@ -241,6 +241,17 @@ const STATUS_COLORS: Record<string, string> = {
 
 const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400";
 
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "অপেক্ষমান",
+  CONFIRMED: "নিশ্চিত",
+  PACKED: "প্যাক করা হয়েছে",
+  SENT: "কুরিয়ারে পাঠানো হয়েছে",
+  SHIPPED: "পাঠানো হয়েছে",
+  DELIVERED: "ডেলিভারি সম্পন্ন",
+  CANCELLED: "বাতিল",
+  RETURNED: "ফেরত আসা হয়েছে",
+};
+
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
@@ -582,7 +593,7 @@ function AdminOverview({ token }: { token: string }) {
                       </span>
                     </td>
                     <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(order.status)}`}>{order.status}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(order.status)}`}>{STATUS_LABEL[order.status] ?? order.status}</span>
                     </td>
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-2">
@@ -2585,7 +2596,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     </style></head><body>
       <div class="c"><h1>${config.storeName}</h1><p style="font-size:11px;margin:2px 0">${new Date(o.createdAt).toLocaleString()}</p></div>
       <div class="dashed"></div>
-      <table>${row("Invoice", invoiceRef)}${row("Customer", sd.name ?? "Guest")}${row("Phone", sd.phone ?? "")}${row("Payment", o.paymentStatus)}${row("Order Status", o.status)}</table>
+      <table>${row("Invoice", invoiceRef)}${row("Customer", sd.name ?? "Guest")}${row("Phone", sd.phone ?? "")}${row("Payment", o.paymentStatus)}${row("Order Status", STATUS_LABEL[o.status] ?? o.status)}</table>
       <div class="dashed"></div>
       <table>${itemRows}</table>
       <div class="dashed"></div>
@@ -2703,9 +2714,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/8">
                 <tr>
-                  {["Courier", "Parcels", "Total Amount", "SENT", "SHIPPED", "DELIVERED", "RETURNED", ""].map((h) => (
+                  {[["Courier", "Courier"], ["Parcels", "Parcels"], ["Total Amount", "Total Amount"], ["SENT", STATUS_LABEL.SENT], ["SHIPPED", STATUS_LABEL.SHIPPED], ["DELIVERED", STATUS_LABEL.DELIVERED], ["RETURNED", STATUS_LABEL.RETURNED], ["", ""]].map(([h, label]) => (
                     <th key={h} className="py-2.5 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
-                      {h}
+                      {label}
                     </th>
                   ))}
                 </tr>
@@ -2773,7 +2784,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                               </span>
                             </td>
                             <td className="py-2.5 px-4">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(o.status)}`}>{o.status}</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(o.status)}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
                             </td>
                             <td className="py-2.5 px-4 text-xs text-gray-400 whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
                             <td className="py-2.5 px-4">
@@ -2806,7 +2817,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               <div key={col} className="min-w-[250px] shrink-0 md:min-w-0">
                 <div className={`flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border ${columnColor[col]}`}>
                   <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor[col]}`} />
-                  <span className="text-xs font-bold truncate">{col}</span>
+                  <span className="text-xs font-bold truncate">{STATUS_LABEL[col] ?? col}</span>
                   <span className="ml-auto shrink-0 min-w-[24px] text-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/80 dark:bg-black/25">
                     {colOrders.length}
                   </span>
