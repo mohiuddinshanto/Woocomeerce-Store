@@ -1226,7 +1226,8 @@ function AdminProducts({ token }: { token: string }) {
     const slug = (rawSlug || name)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+      .replace(/(^-|-$)/g, "")
+      || `product-${Date.now()}`;
     const toBdtNumber = (raw: string | null) => {
       if (!raw) return undefined;
       const cleaned = raw.replace(/[^0-9.]/g, "").replace(/\.(?=.*\.)/g, "");
