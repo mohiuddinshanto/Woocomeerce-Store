@@ -116,7 +116,38 @@ type CategoryDisplayConfig = {
   perView?: { mobile: number; tablet: number; desktop: number };
 };
 
-type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog"; categories?: CategoryDisplayConfig };
+type FlashDealConfig = {
+  enabled?: boolean;
+  badge?: string;
+  titlePrefix?: string;
+  description?: string;
+  buttonLabel?: string;
+  productId?: string;
+  autoPick?: boolean;
+  countdownMode?: "midnight" | "hours";
+  countdownHours?: number;
+  showCountdown?: boolean;
+};
+
+type PromoBannerConfig = {
+  enabled?: boolean;
+  badge?: string;
+  title?: string;
+  accent?: string;
+  subtitle?: string;
+  buttonLabel?: string;
+  buttonLink?: string;
+  image?: string;
+};
+
+type TrustBadgeConfig = {
+  enabled?: boolean;
+  icon?: string;
+  title?: string;
+  subtitle?: string;
+};
+
+type HomePageConfig = { sections: HomeSection[]; layout?: "classic" | "catalog"; categories?: CategoryDisplayConfig; flashDeal?: FlashDealConfig; promoBanners?: PromoBannerConfig[]; trustBadges?: TrustBadgeConfig[] };
 
 type HeroBannerConfig = {
   enabled?: boolean;
@@ -291,16 +322,24 @@ export function Storefront() {
   }, []);
 
   useEffect(() => {
+    const cfg = homeConfig?.flashDeal;
+    const mode = cfg?.countdownMode ?? "midnight";
+    const hours = Math.min(168, Math.max(1, Number(cfg?.countdownHours) || 1));
     const tick = () => {
       const now = new Date();
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
-      setCountdown(Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000)));
+      let target: Date;
+      if (mode === "hours") {
+        target = new Date(now.getTime() + hours * 3600 * 1000);
+      } else {
+        target = new Date(now);
+        target.setHours(24, 0, 0, 0);
+      }
+      setCountdown(Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000)));
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [homeConfig?.flashDeal?.countdownMode, homeConfig?.flashDeal?.countdownHours]);
 
   const categorySections = useMemo(
     () =>
@@ -351,11 +390,15 @@ export function Storefront() {
       .filter((s) => s.items.length > 0);
   }, [homeConfig, categories, products, defaultSections]);
 
-  const featuredDeal = useMemo(
-    () =>
-      products.find((p) => p.salePrice && Number(p.salePrice) < Number(p.price)) ?? products[0],
-    [products]
-  );
+  const featuredDeal = useMemo(() => {
+    const cfg = homeConfig?.flashDeal;
+    const auto = cfg?.autoPick !== false;
+    if (!auto && cfg?.productId) {
+      const picked = products.find((p) => p.id === cfg.productId || p.slug === cfg.productId);
+      if (picked) return picked;
+    }
+    return products.find((p) => p.salePrice && Number(p.salePrice) < Number(p.price)) ?? products[0];
+  }, [products, homeConfig?.flashDeal?.autoPick, homeConfig?.flashDeal?.productId]);
 
   const heroImage = useMemo(
     () =>
@@ -412,6 +455,7 @@ export function Storefront() {
   const dealHasSale = Boolean(
     featuredDeal?.salePrice && Number(featuredDeal.salePrice) < Number(featuredDeal?.price)
   );
+  const flashDealCfg = homeConfig?.flashDeal ?? {};
   const hours = String(Math.floor(countdown / 3600)).padStart(2, "0");
   const mins = String(Math.floor((countdown % 3600) / 60)).padStart(2, "0");
   const secs = String(countdown % 60).padStart(2, "0");
@@ -677,6 +721,8 @@ export function Storefront() {
           add={add}
           buyNow={buyNow}
           sections={homeConfig?.sections}
+          promoBanners={homeConfig?.promoBanners}
+          trustBadges={homeConfig?.trustBadges}
         />
       ) : (
         <>
@@ -922,7 +968,7 @@ export function Storefront() {
       })}
 
       {/* Flash Deal Banner */}
-      {featuredDeal && (
+      {featuredDeal && homeConfig?.flashDeal?.enabled !== false && (
         <section className="relative overflow-hidden bg-white py-12">
           <div className="mx-auto max-w-[1400px] px-[6vw]">
             <div className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-8 shadow-inner lg:p-12">
@@ -934,14 +980,15 @@ export function Storefront() {
                 <div className="space-y-4 lg:col-span-7">
                   <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
                     <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
-                    Limited Time Offer
+                    {flashDealCfg.badge ?? "Limited Time Offer"}
                   </span>
                   <h2 className="font-display text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl">
-                    Daily drop: <span className="gradient-text">{featuredDeal.name}</span>
+                    {flashDealCfg.titlePrefix ?? "Daily drop:"} <span className="gradient-text">{featuredDeal.name}</span>
                   </h2>
                   <p className="max-w-lg text-[0.95rem] leading-relaxed text-slate-500">
-                    One standout piece at a standout price, refreshed every day. Valid till midnight.
+                    {flashDealCfg.description ?? "One standout piece at a standout price, refreshed every day. Valid till midnight."}
                   </p>
+                  {flashDealCfg.showCountdown !== false && (
                   <div className="flex flex-wrap items-center gap-2.5 pt-1 sm:gap-3">
                     {[
                       { v: hours, l: "Hours" },
@@ -959,6 +1006,7 @@ export function Storefront() {
                       </div>
                     ))}
                   </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-4 pt-2">
                     <div className="flex items-baseline gap-2">
                       <span className="text-3xl font-bold text-primary">
@@ -977,7 +1025,7 @@ export function Storefront() {
                       className="font-bold shadow-lg shadow-indigo-500/30"
                       onPress={() => add(featuredDeal)}
                     >
-                      <FiShoppingBag /> Claim Deal
+                      <FiShoppingBag /> {flashDealCfg.buttonLabel ?? "Claim Deal"}
                     </Button>
                   </div>
                 </div>

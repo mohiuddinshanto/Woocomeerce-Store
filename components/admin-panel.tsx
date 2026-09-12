@@ -8,6 +8,46 @@ import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2,
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+type PromoBannerDef = {
+  enabled?: boolean;
+  badge?: string;
+  title?: string;
+  accent?: string;
+  subtitle?: string;
+  buttonLabel?: string;
+  buttonLink?: string;
+  image?: string;
+};
+
+type TrustBadgeDef = {
+  enabled?: boolean;
+  icon?: string;
+  title?: string;
+  subtitle?: string;
+};
+
+type FlashDealDef = {
+  enabled?: boolean;
+  badge?: string;
+  titlePrefix?: string;
+  description?: string;
+  buttonLabel?: string;
+  productId?: string;
+  autoPick?: boolean;
+  countdownMode?: "midnight" | "hours";
+  countdownHours?: number;
+  showCountdown?: boolean;
+};
+
+type HomePageConfigShape = {
+  sections: HomeSectionDef[];
+  layout?: "classic" | "catalog";
+  categories?: CategoryDisplay;
+  flashDeal?: FlashDealDef;
+  promoBanners?: PromoBannerDef[];
+  trustBadges?: TrustBadgeDef[];
+};
+
 type Config = {
   storeName: string;
   featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean };
@@ -40,7 +80,7 @@ type Config = {
   cooldownMinutes: number;
   marketingPixels?: { googleAnalyticsId?: string; metaPixelId?: string; tiktokPixelId?: string; gtmId?: string };
   chatConfig?: { whatsapp?: { enabled?: boolean; number?: string; template?: string }; messenger?: { enabled?: boolean; url?: string }; phone?: string };
-  homePageConfig?: { sections: HomeSectionDef[]; layout?: "classic" | "catalog"; categories?: CategoryDisplay };
+  homePageConfig?: HomePageConfigShape;
   heroBannerConfig?: HeroBannerConfig | null;
   navigationConfig?: { menus: { id: string; label: string; location: string; items: MenuItem[] }[] };
 };
@@ -2392,6 +2432,15 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   async function sendToCourier(o: Order, key: string) {
     const c = couriers.find((x) => x.key === key);
     if (!c) return;
+    if (key === "steadfast") {
+      const res = await api(`/api/admin/orders/${o.id}/send-steadfast`, token, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; consignment?: { tracking_code?: string } };
+      if (res.ok) {
+        toast.success(`#${o.id.slice(0, 6)} → Steadfast ${data.consignment?.tracking_code ?? ""}`);
+        load();
+      } else toast.error(data.error || "Steadfast এ পাঠানো যায়নি");
+      return;
+    }
     const tracking = o.courierTrackingId || `${courierPrefix[c.key] ?? "PC"}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
     const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "SENT", courierName: c.label, courierTrackingId: tracking }) });
     if (res.ok) {
@@ -3054,6 +3103,13 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
       ? config.homePageConfig.sections
       : []
   );
+  const [flash, setFlash] = useState<FlashDealDef>(config.homePageConfig?.flashDeal ?? {});
+  const [flashDirty, setFlashDirty] = useState(false);
+  const [promos, setPromos] = useState<PromoBannerDef[]>([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
+  const [promosDirty, setPromosDirty] = useState(false);
+  const [trust, setTrust] = useState<TrustBadgeDef[]>(config.homePageConfig?.trustBadges?.length ? config.homePageConfig.trustBadges : []);
+  const [trustDirty, setTrustDirty] = useState(false);
+  const [dealProducts, setDealProducts] = useState<{ id: string; name: string; slug: string; salePrice: number | null; price: number }[]>([]);
 
   useEffect(() => {
     api("/api/categories", "")
@@ -3061,7 +3117,41 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
         if (r.ok) setCats(await r.json());
       })
       .catch(() => {});
+    api("/api/products", "")
+      .then(async (r) => {
+        if (r.ok) {
+          const list = await r.json();
+          if (Array.isArray(list))
+            setDealProducts(
+              list
+                .filter((p: { isActive?: boolean }) => p.isActive !== false)
+                .map((p: { id: string; name: string; slug: string; salePrice: string | number | null; price: string | number }) => ({
+                  id: p.id,
+                  name: p.name,
+                  slug: p.slug,
+                  salePrice: p.salePrice !== null && p.salePrice !== undefined ? Number(p.salePrice) : null,
+                  price: Number(p.price),
+                }))
+            );
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setFlash(config.homePageConfig?.flashDeal ?? {});
+    setFlashDirty(false);
+  }, [config.homePageConfig?.flashDeal]);
+
+  useEffect(() => {
+    setPromos([...Array(2)].map((_, i) => config.homePageConfig?.promoBanners?.[i] ?? {}));
+    setPromosDirty(false);
+  }, [config.homePageConfig?.promoBanners]);
+
+  useEffect(() => {
+    setTrust(config.homePageConfig?.trustBadges?.length ? [...config.homePageConfig.trustBadges] : []);
+    setTrustDirty(false);
+  }, [config.homePageConfig?.trustBadges]);
 
   function update(id: string, patch: Partial<HomeSectionDef>) {
     setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -3093,7 +3183,47 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
     for (const s of sections) {
       if (!s.categoryIds.length) return toast.error("Each section needs at least one category");
     }
-    save({ homePageConfig: { layout, sections } });
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), layout, sections, promoBanners: promos, trustBadges: trust } });
+  }
+
+  function saveFlash() {
+    const clean: FlashDealDef = {
+      ...flash,
+      enabled: flash.enabled !== false,
+      autoPick: flash.autoPick !== false,
+      showCountdown: flash.showCountdown !== false,
+      countdownMode: flash.countdownMode === "hours" ? "hours" : "midnight",
+      countdownHours: flash.countdownMode === "hours" ? Math.min(168, Math.max(1, Number(flash.countdownHours) || 1)) : undefined,
+    };
+    if (clean.autoPick) delete clean.productId;
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), flashDeal: clean } });
+  }
+
+  function savePromos() {
+    const clean = promos.map((p) => ({
+      ...p,
+      enabled: p.enabled !== false,
+      badge: p.badge?.trim() || undefined,
+      title: p.title?.trim() || undefined,
+      accent: p.accent?.trim() || undefined,
+      subtitle: p.subtitle?.trim() || undefined,
+      buttonLabel: p.buttonLabel?.trim() || undefined,
+      buttonLink: p.buttonLink?.trim() || undefined,
+      image: p.image?.trim() || undefined,
+    }));
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), promoBanners: clean } });
+  }
+
+  function saveTrust() {
+    const clean = trust
+      .filter((t) => (t.title?.trim() || t.subtitle?.trim()))
+      .map((t) => ({
+        enabled: t.enabled !== false,
+        icon: t.icon?.trim() || undefined,
+        title: t.title?.trim() || undefined,
+        subtitle: t.subtitle?.trim() || undefined,
+      }));
+    save({ homePageConfig: { ...(config.homePageConfig ?? {}), trustBadges: clean.length ? clean : undefined } });
   }
 
   return (
@@ -3114,6 +3244,201 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
         </Select>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">The section list below only applies to the Classic layout. The Catalog layout shows a hero, category grid, popular products and per-category collections automatically.</p>
       </div>
+      {/* FLASH DEAL SETTINGS */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Flash Deal — Limited Time Offer</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The daily limited-time banner on the home page. Classic and Catalog layouts.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <Switch isSelected={flash.enabled !== false} onValueChange={(v) => { setFlash((f) => ({ ...f, enabled: v })); setFlashDirty(true); }} color="primary" />
+              Show banner
+            </label>
+            {flashDirty && (
+              <button
+                type="button"
+                onClick={saveFlash}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+              >
+                {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Flash Deal
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Badge label" placeholder="Limited Time Offer" value={flash.badge ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, badge: v })); setFlashDirty(true); }} />
+          <Input label="Title prefix" placeholder="Daily drop:" value={flash.titlePrefix ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, titlePrefix: v })); setFlashDirty(true); }} />
+        </div>
+        <Textarea
+          label="Description"
+          placeholder="One standout piece at a standout price, refreshed every day. Valid till midnight."
+          value={flash.description ?? ""}
+          onValueChange={(v) => { setFlash((f) => ({ ...f, description: v })); setFlashDirty(true); }}
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Button label" placeholder="Claim Deal" value={flash.buttonLabel ?? ""} onValueChange={(v) => { setFlash((f) => ({ ...f, buttonLabel: v })); setFlashDirty(true); }} />
+          <Select
+            label="Featured product"
+            selectedKeys={[flash.autoPick === false && flash.productId ? flash.productId : "auto"]}
+            onSelectionChange={(keys) => {
+              const id = Array.from(keys as Set<string>)[0] as string;
+              if (id === "auto") { setFlash((f) => ({ ...f, autoPick: true, productId: undefined })); }
+              else { setFlash((f) => ({ ...f, autoPick: false, productId: id })); }
+              setFlashDirty(true);
+            }}
+          >
+            <>
+              <SelectItem key="auto">Auto — pick a sale product</SelectItem>
+              {dealProducts.map((p) => (
+                <SelectItem key={p.id} textValue={p.name}>
+                  {p.name} {p.salePrice ? `(${money(p.salePrice)})` : ""}
+                </SelectItem>
+              ))}
+            </>
+          </Select>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Select
+            label="Countdown"
+            selectedKeys={[flash.countdownMode === "hours" ? "hours" : "midnight"]}
+            onSelectionChange={(keys) => { setFlash((f) => ({ ...f, countdownMode: (Array.from(keys as Set<string>)[0] as "midnight" | "hours") ?? "midnight" })); setFlashDirty(true); }}
+          >
+            <SelectItem key="midnight">Until midnight</SelectItem>
+            <SelectItem key="hours">Fixed hours</SelectItem>
+          </Select>
+          <Input
+            type="number"
+            label="Hours (for fixed mode)"
+            min={1}
+            max={168}
+            step={1}
+            disabled={flash.countdownMode !== "hours"}
+            value={String(flash.countdownHours ?? 12)}
+            onValueChange={(v) => { setFlash((f) => ({ ...f, countdownHours: Number(v) || 12 })); setFlashDirty(true); }}
+          />
+          <label className="flex items-end gap-2 text-sm font-medium text-gray-700 dark:text-slate-300 pb-2">
+            <Switch isSelected={flash.showCountdown !== false} onValueChange={(v) => { setFlash((f) => ({ ...f, showCountdown: v })); setFlashDirty(true); }} color="primary" />
+            Show countdown
+          </label>
+        </div>
+      </div>
+
+      {/* PROMO BANNERS */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Promo Banners</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The two small offer banners on the Catalog layout home page.
+            </p>
+          </div>
+          {promosDirty && (
+            <button
+              type="button"
+              onClick={savePromos}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Promo Banners
+            </button>
+          )}
+        </div>
+        {promos.map((p, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Banner {i + 1}</span>
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+                  <Switch isSelected={p.enabled !== false} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setPromosDirty(true); }} color="primary" />
+                  Show
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Badge" placeholder="বিশেষ কালেকশন" value={p.badge ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, badge: v } : b))); setPromosDirty(true); }} />
+              <Input label="Accent (highlighted text)" placeholder="ঐতিহ্যের ছোঁয়া" value={p.accent ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, accent: v } : b))); setPromosDirty(true); }} />
+              <Input label="Title" placeholder="ঈদে পরুন" value={p.title ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Subtitle" placeholder="বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য" value={p.subtitle ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              <Input label="Button label" placeholder="কালেকশন দেখুন →" value={p.buttonLabel ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLabel: v } : b))); setPromosDirty(true); }} />
+              <Input label="Button link" placeholder="#shop" value={p.buttonLink ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, buttonLink: v } : b))); setPromosDirty(true); }} />
+              <Input label="Image URL" placeholder="https://…" value={p.image ?? ""} onValueChange={(v) => { setPromos((prev) => prev.map((b, bi) => (bi === i ? { ...b, image: v } : b))); setPromosDirty(true); }} className="sm:col-span-2" />
+              {p.image && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={p.image} alt="" className="h-24 w-36 object-cover rounded-lg border border-gray-100" />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* TRUST BADGES */}
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-5 sm:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="font-display font-bold text-gray-900 dark:text-white">Trust Badges</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              The 4 trust badge strip on the Catalog home. Click "Add Badge" to create new badges.
+            </p>
+          </div>
+          {trustDirty && (
+            <button
+              type="button"
+              onClick={saveTrust}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-primary to-indigo-500 text-white text-sm font-bold rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-60"
+            >
+              {saving ? <FiUpload className="animate-pulse" /> : <FiCheck />} Save Trust Badges
+            </button>
+          )}
+        </div>
+        {trust.map((t, i) => (
+          <div key={i} className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Badge {i + 1}</span>
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+                  <Switch isSelected={t.enabled !== false} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, enabled: v } : b))); setTrustDirty(true); }} color="primary" />
+                  Show
+                </label>
+              </div>
+              <button type="button" onClick={() => { setTrust((prev) => prev.filter((_, bi) => bi !== i)); setTrustDirty(true); }} className="text-xs text-red-500 font-semibold hover:underline">Remove</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select
+                label="Icon"
+                selectedKeys={[t.icon || "shield"]}
+                onSelectionChange={(keys) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, icon: Array.from(keys as Set<string>)[0] } : b))); setTrustDirty(true); }}
+              >
+                <SelectItem key="shield">Shield</SelectItem>
+                <SelectItem key="truck">Truck</SelectItem>
+                <SelectItem key="refresh">Refresh</SelectItem>
+                <SelectItem key="check">Check</SelectItem>
+                <SelectItem key="clock">Clock</SelectItem>
+                <SelectItem key="star">Star</SelectItem>
+                <SelectItem key="headset">Headset</SelectItem>
+                <SelectItem key="chat">Chat</SelectItem>
+              </Select>
+              <Input label="Title" placeholder="নিরাপদ পেমেন্ট" value={t.title ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, title: v } : b))); setTrustDirty(true); }} />
+              <Input label="Subtitle" placeholder="ক্যাশ অন ডেলিভারি / বিকাশ / ব্যাংক" value={t.subtitle ?? ""} onValueChange={(v) => { setTrust((prev) => prev.map((b, bi) => (bi === i ? { ...b, subtitle: v } : b))); setTrustDirty(true); }} />
+            </div>
+          </div>
+        ))}
+        {trust.length < 4 && (
+          <button
+            type="button"
+            onClick={() => { setTrust((prev) => [...prev, { enabled: true, icon: "shield", title: "", subtitle: "" }]); setTrustDirty(true); }}
+            className="inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+          >
+            <FiPlus /> Add Badge
+          </button>
+        )}
+      </div>
+
       <div>
         <button
           type="button"

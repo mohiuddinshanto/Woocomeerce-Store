@@ -4,7 +4,19 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiArrowRight, FiCheck, FiTruck, FiRefreshCw, FiShield, FiMessageCircle } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiShoppingBag, FiArrowRight, FiCheck, FiTruck, FiRefreshCw, FiShield, FiMessageCircle, FiClock, FiStar, FiHeadphones } from "react-icons/fi";
+import type { IconType } from "react-icons";
+
+const ICON_MAP: Record<string, IconType> = {
+  shield: FiShield,
+  truck: FiTruck,
+  refresh: FiRefreshCw,
+  check: FiCheck,
+  clock: FiClock,
+  star: FiStar,
+  headset: FiHeadphones,
+  chat: FiMessageCircle,
+};
 import { CarouselSlider } from "./carousel-slider";
 
 const money = (v: number | string) => `৳ ${Number(v).toLocaleString("en-BD")}`;
@@ -271,6 +283,24 @@ type HomeSectionDef = {
   showViewAll: boolean;
 };
 
+export type PromoBannerDef = {
+  enabled?: boolean;
+  badge?: string;
+  title?: string;
+  accent?: string;
+  subtitle?: string;
+  buttonLabel?: string;
+  buttonLink?: string;
+  image?: string;
+};
+
+export type TrustBadgeDef = {
+  enabled?: boolean;
+  icon?: string;
+  title?: string;
+  subtitle?: string;
+};
+
 export function CatalogHome({
   products,
   categories,
@@ -280,6 +310,8 @@ export function CatalogHome({
   add,
   buyNow,
   sections,
+  promoBanners,
+  trustBadges,
 }: {
   products: Product[];
   categories: Category[];
@@ -289,6 +321,8 @@ export function CatalogHome({
   add: (p: Product, variation?: Variation) => void;
   buyNow: (p: Product, variation?: Variation) => void;
   sections?: HomeSectionDef[];
+  promoBanners?: PromoBannerDef[];
+  trustBadges?: TrustBadgeDef[];
 }) {
   const [activeTab, setActiveTab] = useState<string>("all");
 
@@ -335,6 +369,64 @@ export function CatalogHome({
       }));
 
   const img = (p: Product) => p.images?.[0] || FALLBACK;
+
+  const promos: (Required<Pick<PromoBannerDef, "enabled" | "badge" | "title" | "accent" | "subtitle" | "buttonLabel" | "buttonLink" | "image">> & { theme: "amber" | "emerald"; linkSide: "left" | "right" })[] = [
+    {
+      enabled: true,
+      badge: "বিশেষ কালেকশন",
+      title: "ঈদে পরুন",
+      accent: "ঐতিহ্যের ছোঁয়া",
+      subtitle: "বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য",
+      buttonLabel: "কালেকশন দেখুন →",
+      buttonLink: "#shop",
+      image: products[0]?.images[0] || FALLBACK,
+      theme: "amber",
+      linkSide: "left",
+    },
+    {
+      enabled: true,
+      badge: "একই ডিজাইনে",
+      title: "এক্সক্লুসিভ সেট",
+      accent: "সেট পণ্য",
+      subtitle: "আকর্ষণীয় মূল্যে কম্বো অফার",
+      buttonLabel: "সেট দেখুন →",
+      buttonLink: "#shop",
+      image: products[1]?.images[0] || products[0]?.images[0] || FALLBACK,
+      theme: "emerald",
+      linkSide: "right",
+    },
+  ];
+
+  const mergedPromos = promos.map((def, i) => {
+    const c = promoBanners?.[i] ?? {};
+    const left = def.linkSide === "left";
+    const themed =
+      def.theme === "amber"
+        ? {
+            card: "border border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50",
+            badge: "bg-amber-200/70 text-amber-900",
+            accent: "text-[#093d2b]",
+          }
+        : {
+            card: "border border-emerald-200 bg-gradient-to-r from-emerald-100/70 to-emerald-50",
+            badge: "bg-emerald-200/70 text-emerald-900",
+            accent: "text-amber-700",
+          };
+    return {
+      enabled: c.enabled ?? def.enabled,
+      badge: c.badge ?? def.badge,
+      title: c.title ?? def.title,
+      accent: c.accent ?? def.accent,
+      subtitle: c.subtitle ?? def.subtitle,
+      buttonLabel: c.buttonLabel ?? def.buttonLabel,
+      buttonLink: c.buttonLink ?? def.buttonLink,
+      image: c.image ?? def.image,
+      theme: themed,
+      left,
+    };
+  });
+
+  const visiblePromos = mergedPromos.filter((p) => p.enabled);
 
   return (
     <>
@@ -500,78 +592,109 @@ export function CatalogHome({
       ))}
 
       {/* TRUST */}
-      <section className="mx-auto max-w-7xl px-4 py-4">
-        <div className="grid grid-cols-1 gap-6 rounded-xl border border-emerald-100 bg-emerald-50/70 p-5 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { icon: <FiShield size={22} />, title: "১০০% অরিজিনাল পণ্য", sub: "নকল পণ্যের সাথে আপস নয়" },
-            { icon: <FiTruck size={22} />, title: "সারা বাংলাদেশে ডেলিভারি", sub: "দ্রুত ও নিরাপদ ডেলিভারি" },
-            { icon: <FiRefreshCw size={22} />, title: "সহজ রিটার্ন পলিসি", sub: "৭ দিনের মধ্যে রিটার্ন সুবিধা" },
-            { icon: <FiCheck size={22} />, title: "নিরাপদ পেমেন্ট", sub: "ক্যাশ অন ডেলিভারি / বিকাশ / ব্যাংক" },
-          ].map((t) => (
-            <div key={t.title} className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#093d2b] text-white">
-                {t.icon}
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-gray-900">{t.title}</h4>
-                <p className="text-xs text-gray-500">{t.sub}</p>
-              </div>
+      {(() => {
+        const defaults: { key: string; icon: string; title: string; subtitle: string }[] = [
+          { key: "shield", icon: "shield", title: "১০০% অরিজিনাল পণ্য", subtitle: "নকল পণ্যের সাথে আপস নয়" },
+          { key: "truck", icon: "truck", title: "সারা বাংলাদেশে ডেলিভারি", subtitle: "দ্রুত ও নিরাপদ ডেলিভারি" },
+          { key: "refresh", icon: "refresh", title: "সহজ রিটার্ন পলিসি", subtitle: "৭ দিনের মধ্যে রিটার্ন সুবিধা" },
+          { key: "check", icon: "check", title: "নিরাপদ পেমেন্ট", subtitle: "ক্যাশ অন ডেলিভারি / বিকাশ / ব্যাংক" },
+        ];
+        const merged = defaults.map((d, i) => {
+          const c = trustBadges?.[i] ?? {};
+          return {
+            enabled: c.enabled !== false,
+            icon: c.icon || d.icon,
+            title: c.title || d.title,
+            subtitle: c.subtitle || d.subtitle,
+          };
+        });
+        const visible = merged.filter((b) => b.enabled);
+        if (!visible.length) return null;
+        return (
+          <section className="mx-auto max-w-7xl px-4 py-4">
+            <div className="grid grid-cols-1 gap-6 rounded-xl border border-emerald-100 bg-emerald-50/70 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              {visible.map((t) => {
+                const Ic = ICON_MAP[t.icon] ?? FiShield;
+                return (
+                  <div key={t.title} className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#093d2b] text-white">
+                      <Ic size={22} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">{t.title}</h4>
+                      <p className="text-xs text-gray-500">{t.subtitle}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       {/* PROMO */}
-      <section className="mx-auto max-w-7xl px-4 py-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50 p-6 shadow-sm sm:p-8">
-            <div className="z-10 flex-1 space-y-2 min-w-0">
-              <span className="rounded bg-amber-200/70 px-2 py-0.5 text-sm font-semibold text-amber-900">বিশেষ কালেকশন</span>
-              <h3 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">
-                ঈদে পরুন <br /><span className="text-[#093d2b]">ঐতিহ্যের ছোঁয়া</span>
-              </h3>
-              <p className="text-sm text-gray-600">বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য</p>
-              <div className="pt-2">
-                <Link href="#shop" className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
-                  কালেকশন দেখুন →
-                </Link>
+      {visiblePromos.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {visiblePromos.map((p, i) => (
+              <div
+                key={i}
+                className={`relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl ${p.theme.card} p-6 shadow-sm sm:p-8`}
+              >
+                {p.left ? (
+                  <>
+                    <div className="z-10 flex-1 space-y-2 min-w-0">
+                      <span className={`rounded px-2 py-0.5 text-sm font-semibold ${p.theme.badge}`}>{p.badge}</span>
+                      <h3 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">
+                        {p.title} <br /><span className={p.theme.accent}>{p.accent}</span>
+                      </h3>
+                      <p className="text-sm text-gray-600">{p.subtitle}</p>
+                      <div className="pt-2">
+                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
+                          {p.buttonLabel}
+                        </Link>
+                      </div>
+                    </div>
+                    <div className="relative h-40 w-28 shrink-0 sm:h-48 sm:w-44">
+                      <Image
+                        src={p.image}
+                        alt={`Promo ${i + 1}`}
+                        fill
+                        sizes="180px"
+                        className="rounded-xl object-cover shadow-md"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="relative h-40 w-28 shrink-0 sm:h-48 sm:w-44">
+                      <Image
+                        src={p.image}
+                        alt={`Promo ${i + 1}`}
+                        fill
+                        sizes="180px"
+                        className="rounded-xl object-cover shadow-md"
+                      />
+                    </div>
+                    <div className="z-10 flex-1 space-y-2 text-right min-w-0">
+                      <span className={`rounded px-2 py-0.5 text-sm font-semibold ${p.theme.badge}`}>{p.badge}</span>
+                      <h3 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">
+                        {p.title} <br /><span className={p.theme.accent}>{p.accent}</span>
+                      </h3>
+                      <p className="text-sm text-gray-600">{p.subtitle}</p>
+                      <div className="flex justify-end pt-2">
+                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
+                          {p.buttonLabel}
+                        </Link>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-            <div className="relative h-40 w-28 shrink-0 sm:h-48 sm:w-44">
-              <Image
-                src={products[0]?.images[0] || FALLBACK}
-                alt="Promo 1"
-                fill
-                sizes="180px"
-                className="rounded-xl object-cover shadow-md"
-              />
-            </div>
+            ))}
           </div>
-          <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-100/70 to-emerald-50 p-6 shadow-sm sm:p-8">
-            <div className="relative h-40 w-28 shrink-0 sm:h-48 sm:w-44">
-              <Image
-                src={products[1]?.images[0] || products[0]?.images[0] || FALLBACK}
-                alt="Promo 2"
-                fill
-                sizes="180px"
-                className="rounded-xl object-cover shadow-md"
-              />
-            </div>
-            <div className="z-10 flex-1 space-y-2 text-right min-w-0">
-              <span className="rounded bg-emerald-200/70 px-2 py-0.5 text-sm font-semibold text-emerald-900">একই ডিজাইনে</span>
-              <h3 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">
-                এক্সক্লুসিভ সেট <br /><span className="text-amber-700">সেট পণ্য</span>
-              </h3>
-              <p className="text-sm text-gray-600">আকর্ষণীয় মূল্যে কম্বো অফার</p>
-              <div className="flex justify-end pt-2">
-                <Link href="#shop" className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
-                  সেট দেখুন →
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }
