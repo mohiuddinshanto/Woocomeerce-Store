@@ -627,14 +627,30 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
   const navConfig = config.navigationConfig ?? { menus: [] };
   const menu = navConfig.menus[0] ?? { id: "primary", label: "Primary", location: "header", items: [] as MenuItem[] };
   const [title, setTitle] = useState(menu.label);
-  const [items, setItems] = useState<MenuItem[]>(menu.items);
+  const [items, setItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [pendingCat, setPendingCat] = useState("");
+
+  const hasSavedMenu = (navConfig.menus?.[0]?.items?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (hasSavedMenu) {
+      setItems(navConfig.menus[0].items);
+    }
+  }, [hasSavedMenu, navConfig]);
 
   const loadCats = () => {
     fetch(`${apiUrl}/api/categories`)
       .then((r) => r.json())
-      .then((res) => Array.isArray(res) && setCategories(res))
+      .then((res) => {
+        if (!Array.isArray(res)) return;
+        setCategories(res);
+        if (!hasSavedMenu && res.length) {
+          setItems(
+            res.slice(0, 4).map((c) => ({ id: `mi-${Date.now()}-${c.id}`, label: c.name, type: "category" as const, categoryId: c.id, children: [] }))
+          );
+        }
+      })
       .catch(() => {});
   };
   useEffect(loadCats, []);
@@ -860,7 +876,14 @@ function MenuBuilder({ config, save, saving }: { config: Config; save: (payload:
           No menu items yet. Start by adding a category or a custom link above.
         </p>
       ) : (
-        <ul className="space-y-1">{items.map((n) => renderItem(n, 0))}</ul>
+        <>
+          {!hasSavedMenu && (
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              এগুলো বর্তমানে হোম পেজের হেডারে দেখানো হচ্ছে (অটো)। এডিট করে নিচের Save Menu-এ ক্লিক করুন।
+            </p>
+          )}
+          <ul className="space-y-1">{items.map((n) => renderItem(n, 0))}</ul>
+        </>
       )}
 
       <div className="flex items-center gap-3">
