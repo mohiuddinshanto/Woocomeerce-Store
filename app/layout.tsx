@@ -43,6 +43,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     "--primary-gradient": `linear-gradient(135deg, ${primary} 0%, ${shade(primary, 40)} 100%)`,
     "--secondary": secondary,
     "--store-font": theme.font && theme.font !== "Arial" ? theme.font : "'Plus Jakarta Sans', sans-serif",
+    "--font-sans": theme.font && theme.font !== "Arial" ? `'${theme.font}', sans-serif` : "'Plus Jakarta Sans', sans-serif",
+    "--font-display": theme.font && theme.font !== "Arial" ? `'${theme.font}', sans-serif` : "'Outfit', sans-serif",
   } as CSSProperties;
 
   return (
@@ -51,7 +53,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla:ital@0;1&display=swap"
           rel="stylesheet"
         />
       </head>

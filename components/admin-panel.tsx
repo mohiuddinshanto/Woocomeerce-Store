@@ -3360,7 +3360,7 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
               selectedKeys={[theme.font ?? "Plus Jakarta Sans"]}
               onChange={(e) => save({ themeSettings: { ...theme, font: e.target.value } })}
             >
-              {["Plus Jakarta Sans", "Outfit", "Arial", "Georgia", "Inter"].map((f) => (
+              {["Plus Jakarta Sans", "Outfit", "Arial", "Georgia", "Inter", "Noto Sans Bengali", "Hind Siliguri", "Tiro Bangla"].map((f) => (
                 <SelectItem key={f}>{f}</SelectItem>
               ))}
             </Select>
