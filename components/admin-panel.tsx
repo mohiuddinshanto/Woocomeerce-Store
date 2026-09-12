@@ -2552,7 +2552,8 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     const row = (l: string, r: string) => `<tr><td style="padding:3px 0;color:#444">${l}</td><td style="padding:3px 0;text-align:right;font-weight:700">${r}</td></tr>`;
     const itemRows = items.map((it) => `<tr><td style="padding:2px 0;font-size:12px">${it.name}</td><td style="padding:2px 0;font-size:12px;text-align:right">${it.qty} x ${money(it.price)}</td></tr>`).join("");
     const isSf = o.courierName?.toLowerCase() === "steadfast";
-    const invoiceRef = isSf && sd.sfConsignmentId ? `SF-${sd.sfConsignmentId}` : `#${o.id.slice(0, 8)}`;
+    const sfRef = isSf ? sd.sfTrackingCode ?? o.courierTrackingId ?? "" : "";
+    const invoiceRef = isSf && sfRef ? `SF-${sfRef}` : `#${o.id.slice(0, 8)}`;
     win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invoiceRef}</title><style>
       body{width:80mm;margin:0 auto;font-family:'Courier New',monospace;font-size:12px;color:#000}
       h1{font-size:16px;margin:0 0 2px}h3{font-size:13px;margin:0}
@@ -2571,7 +2572,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       <table><tr><td style="padding:3px 0"></td><td style="padding:3px 0"></td></tr>${row("Subtotal", money(o.subtotal ?? o.totalAmount))}${Number(o.shippingCharge) ? row("Shipping", money(o.shippingCharge ?? 0)) : ""}${row("Total", money(o.totalAmount))}</table>
       <div class="dashed"></div>
       <div style="text-align:center;font-size:11px">Address: ${sd.address ?? ""}, ${sd.district ?? ""}</div>
-      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sd.sfConsignmentId}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Tracking Code:</span> <span class="big">${o.courierTrackingId ?? sd.sfTrackingCode ?? ""}</span></div>${o.shippingDetails?.sfStatus ? `<div class="c" style="font-size:11px">Delivery: ${sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus}</div>` : ""}` : ""}
+      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div>${invoiceRef.startsWith("SF-") ? `<div class="c" style="font-size:11px;margin-top:3px">Consignment ID: <span class="big">${sfRef}</span></div>` : ""}<div class="c" style="margin-top:2px"><span style="font-size:11px">Delivery Status: </span> <span class="big">${o.shippingDetails?.sfStatus ? (sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus) : "—"}</span></div>` : ""}
       <div class="dashed"></div>
       <div style="text-align:center">ধন্যবাদ!</div>
     </body></html>`);
