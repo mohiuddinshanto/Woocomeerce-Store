@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiMenu, FiPlus, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiMenu, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -198,7 +198,12 @@ type Order = {
   createdAt: string;
   paymentStatus: string;
   customerId: string | null;
-  shippingDetails: { name?: string; phone?: string; address?: string; district?: string } | null;
+  shippingDetails: { name?: string; phone?: string; address?: string; district?: string; sfStatus?: string; sfSyncedAt?: string } | null;
+  orderItems?: { name: string; qty: number; price: number; sku?: string }[];
+  subtotal?: string;
+  shippingCharge?: string;
+  discountAmount?: string | null;
+  coupon?: { code: string } | null;
   courierName?: string;
   courierTrackingId?: string;
 };
@@ -2395,6 +2400,8 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [openCourier, setOpenCourier] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
 
   const load = () => {
     api("/api/admin/orders", token)
@@ -2469,6 +2476,107 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     CANCELLED: "bg-rose-500",
   };
 
+  const sfStatusStyle: Record<string, string> = {
+    delivered: "bg-emerald/10 text-emerald",
+    partial_delivered: "bg-emerald/10 text-emerald",
+    cancelled: "bg-rose-500/10 text-rose-500",
+    in_review: "bg-amber/10 text-amber",
+    hold: "bg-orange-500/10 text-orange-500",
+    unknown: "bg-gray-100 dark:bg-white/8 text-gray-500",
+    unknown_approval_pending: "bg-slate-100 dark:bg-white/8 text-slate-500",
+    pending: "bg-indigo-500/10 text-indigo-500",
+  };
+  const sfStatusLabel: Record<string, string> = {
+    delivered: "Delivered",
+    partial_delivered: "Partially Delivered",
+    cancelled: "Cancelled",
+    in_review: "In Review",
+    hold: "On Hold",
+    unknown: "Unknown",
+    unknown_approval_pending: "Approval Pending",
+    pending: "Pending",
+  };
+
+  const safeDate = (d: string) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? d : dt;
+  };
+  const today = new Date().setHours(0, 0, 0, 0);
+  const stats = {
+    total: orders.length,
+    today: orders.filter((o) => new Date(safeDate(o.createdAt)).getTime() >= today).length,
+    cancelled: orders.filter((o) => o.status === "CANCELLED" || o.status === "RETURNED").length,
+    delivered: orders.filter((o) => o.status === "DELIVERED").length,
+    pending: orders.filter((o) => o.status === "PENDING").length,
+    shipped: orders.filter((o) => o.status === "SHIPPED" || o.status === "SENT").length,
+  };
+  const sfAgg: Record<string, number> = {};
+  orders.forEach((o) => {
+    const st = o.shippingDetails?.sfStatus;
+    if (st) sfAgg[st] = (sfAgg[st] ?? 0) + 1;
+  });
+
+  async function syncSteadfast(o: Order) {
+    setSyncing(o.id);
+    try {
+      const res = await api(`/api/admin/orders/${o.id}/sync-steadfast`, token, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; delivery_status?: string };
+      if (res.ok) {
+        toast.success(`Status: ${sfStatusLabel[data.delivery_status ?? ""] ?? data.delivery_status}`);
+        load();
+      } else toast.error(data.error || "Sync করা যায়নি");
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  async function syncAllSteadfast() {
+    setSyncingAll(true);
+    try {
+      const res = await api("/api/admin/orders/sync-all-steadfast", token, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; synced?: number };
+      if (res.ok) {
+        toast.success(`${data.synced ?? 0} parcels synced`);
+        load();
+      } else toast.error(data.error || "Sync করা যায়নি");
+    } finally {
+      setSyncingAll(false);
+    }
+  }
+
+  function printOrder(o: Order) {
+    const sd = o.shippingDetails ?? {};
+    const items = o.orderItems ?? [];
+    const win = window.open("", "_blank", "width=480,height=640");
+    if (!win) return toast.error("Browser popup ব্লক করছে");
+    const row = (l: string, r: string) => `<tr><td style="padding:3px 0;color:#444">${l}</td><td style="padding:3px 0;text-align:right;font-weight:700">${r}</td></tr>`;
+    const itemRows = items.map((it) => `<tr><td style="padding:2px 0;font-size:12px">${it.name}</td><td style="padding:2px 0;font-size:12px;text-align:right">${it.qty} x ${money(it.price)}</td></tr>`).join("");
+    win.document.write(`<!DOCTYPE html><html><head><title>Invoice #${o.id.slice(0, 8)}</title><style>
+      body{width:80mm;margin:0 auto;font-family:'Courier New',monospace;font-size:12px;color:#000}
+      h1{font-size:16px;margin:0 0 2px}h3{font-size:13px;margin:0}
+      .c{text-align:center}.dashed{border-top:1px dashed #000;margin:6px 0}
+      table{width:100%;border-collapse:collapse}
+      .mono{font-family:'Courier New',monospace}
+      @media print{@page{margin:4mm}body{width:auto}}
+    </style></head><body>
+      <div class="c"><h1>${config.storeName}</h1><p style="font-size:11px;margin:2px 0">${new Date(o.createdAt).toLocaleString()}</p></div>
+      <div class="dashed"></div>
+      <table>${row("Invoice", "#" + o.id.slice(0, 8))}${row("Customer", sd.name ?? "Guest")}${row("Phone", sd.phone ?? "")}${row("Payment", o.paymentStatus)}${row("Order Status", o.status)}</table>
+      <div class="dashed"></div>
+      <table>${itemRows}</table>
+      <div class="dashed"></div>
+      <table><tr><td style="padding:3px 0"></td><td style="padding:3px 0"></td></tr>${row("Subtotal", money(o.subtotal ?? o.totalAmount))}${Number(o.shippingCharge) ? row("Shipping", money(o.shippingCharge ?? 0)) : ""}${row("Total", money(o.totalAmount))}</table>
+      <div class="dashed"></div>
+      <div style="text-align:center;font-size:11px">Address: ${sd.address ?? ""}, ${sd.district ?? ""}</div>
+      ${o.courierName ? `<div class="dashed"></div><div style="text-align:center"><b>${o.courierName}</b></div><div class="c mono" style="font-size:13px;font-weight:bold">${o.courierTrackingId ?? ""}</div>${o.shippingDetails?.sfStatus ? `<div class="c" style="font-size:11px">Delivery: ${sfStatusLabel[o.shippingDetails.sfStatus] ?? o.shippingDetails.sfStatus}</div>` : ""}` : ""}
+      <div class="dashed"></div>
+      <div style="text-align:center">ধন্যবাদ!</div>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2486,7 +2594,41 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
           ))}
           <span className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 self-center">{orders.length} orders</span>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {couriers.some((c) => c.key === "steadfast") && (
+            <Button size="sm" variant="flat" onPress={syncAllSteadfast} isLoading={syncingAll}>
+              <FiRefreshCw size={12} /> Sync Steadfast
+            </Button>
+          )}
+        </div>
       </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2">
+        {[
+          { label: "Total", value: stats.total, cls: "text-gray-900 dark:text-white" },
+          { label: "Today", value: stats.today, cls: "text-primary" },
+          { label: "Pending", value: stats.pending, cls: "text-amber" },
+          { label: "Shipped/Sent", value: stats.shipped, cls: "text-indigo-500" },
+          { label: "Delivered", value: stats.delivered, cls: "text-emerald" },
+          { label: "Cancelled", value: stats.cancelled, cls: "text-rose-500" },
+          { label: "SF: In Review", value: sfAgg.in_review ?? 0, cls: "text-amber" },
+          { label: "SF: Delivered", value: sfAgg.delivered ?? 0, cls: "text-emerald" },
+        ].map((s) => (
+          <div key={s.label} className="bg-white dark:bg-white/4 rounded-xl border border-gray-100 dark:border-white/6 px-3 py-2.5">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">{s.label}</p>
+            <p className={`text-lg font-extrabold ${s.cls}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+      {Object.keys(sfAgg).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(sfAgg).map(([st, n]) => (
+            <span key={st} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${sfStatusStyle[st] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
+              {sfStatusLabel[st] ?? st}: {n}
+            </span>
+          ))}
+        </div>
+      )}
 
       {couriers.length > 0 && (
         <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 overflow-hidden">
@@ -2565,6 +2707,18 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                             <td className="py-2.5 px-4 text-xs text-primary font-bold whitespace-nowrap">#{o.id.slice(0, 8)}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-700 dark:text-slate-300">{o.shippingDetails?.name ?? "Guest"}</td>
                             <td className="py-2.5 px-4 text-xs text-gray-500">{o.courierTrackingId || "—"}</td>
+                            <td className="py-2.5 px-4 text-xs text-gray-500">
+                              {o.courierName?.toLowerCase() === "steadfast" ? (
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
+                                  {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+                                  <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} title="Sync status">
+                                    <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} />
+                                  </button>
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
                             <td className="py-2.5 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(o.totalAmount)}</td>
                             <td className="py-2.5 px-4">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
@@ -2575,11 +2729,16 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(o.status)}`}>{o.status}</span>
                             </td>
                             <td className="py-2.5 px-4 text-xs text-gray-400 whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
+                            <td className="py-2.5 px-4">
+                              <Button size="sm" variant="light" className="h-7 w-7 min-w-0 px-0" onPress={() => printOrder(o)}>
+                                <FiPrinter size={12} />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
                         {!c.parcels.length && (
                           <tr>
-                            <td className="py-4 px-4 text-xs text-gray-400 text-center" colSpan={7}>
+                            <td className="py-4 px-4 text-xs text-gray-400 text-center" colSpan={9}>
                               No parcels for {c.label} yet.
                             </td>
                           </tr>
@@ -2622,6 +2781,14 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
     {o.courierTrackingId && (
       <span className="min-w-0 text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/8 text-gray-500 font-mono truncate">{o.courierTrackingId}</span>
     )}
+    {o.courierName?.toLowerCase() === "steadfast" && o.courierTrackingId && (
+      <span className={`w-full shrink-0 text-[10px] px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1.5 ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
+        {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+        <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} className="ml-auto inline-flex items-center gap-1 hover:underline">
+          <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} /> {syncing === o.id ? "..." : "Sync"}
+        </button>
+      </span>
+    )}
   </div>
 )}
                       <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/6">
@@ -2636,18 +2803,23 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                         </Select>
                       </div>
                       <div className="mt-2">
-                        <Dropdown>
-                          <DropdownTrigger>
-                            <Button size="sm" variant="flat" className="w-full h-8 text-xs font-bold" isDisabled={!couriers.length}>
-                              <FiSend size={12} /> {o.courierName ? "Resend" : "Send"}
-                            </Button>
-                          </DropdownTrigger>
-                          <DropdownMenu aria-label="Send to courier" onAction={(key) => sendToCourier(o, key as string)}>
-                            {couriers.map((c) => (
-                              <DropdownItem key={c.key}>Send via {c.label}</DropdownItem>
-                            ))}
-                          </DropdownMenu>
-                        </Dropdown>
+                        <div className="flex gap-2">
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button size="sm" variant="flat" className="flex-1 h-8 text-xs font-bold" isDisabled={!couriers.length}>
+                                <FiSend size={12} /> {o.courierName ? "Resend" : "Send"}
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Send to courier" onAction={(key) => sendToCourier(o, key as string)}>
+                              {couriers.map((c) => (
+                                <DropdownItem key={c.key}>Send via {c.label}</DropdownItem>
+                              ))}
+                            </DropdownMenu>
+                          </Dropdown>
+                          <Button size="sm" variant="light" className="shrink-0 h-8 w-8 text-xs font-bold" onPress={() => printOrder(o)}>
+                            <FiPrinter size={14} />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2686,24 +2858,33 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusPill(o.status)}`}>{o.status}</span>
                     </td>
                     <td className="py-3 px-4">
-                      {o.courierName ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] font-bold text-indigo-500">{o.courierName}</span>
-                          {o.courierTrackingId && <span className="text-xs font-mono text-gray-400">{o.courierTrackingId}</span>}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-300 dark:text-slate-600">—</span>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-indigo-500">{o.courierName}</span>
+                        {o.courierTrackingId && <span className="text-xs font-mono text-gray-400">{o.courierTrackingId}</span>}
+                        {o.courierName?.toLowerCase() === "steadfast" && (
+                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold w-fit ${sfStatusStyle[o.shippingDetails?.sfStatus ?? ""] ?? "bg-gray-100 dark:bg-white/8 text-gray-500"}`}>
+                            {sfStatusLabel[o.shippingDetails?.sfStatus ?? ""] ?? "Not synced"}
+                            <button type="button" onClick={() => syncSteadfast(o)} disabled={syncing === o.id} title="Sync status">
+                              <FiRefreshCw size={10} className={syncing === o.id ? "animate-spin" : ""} />
+                            </button>
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4">
-                      <Button
-                        size="sm"
-                        variant={o.paymentStatus === "PAID" ? "flat" : "solid"}
-                        color={o.paymentStatus === "PAID" ? "default" : "warning"}
-                        onPress={() => updateStatus(o.id, o.status, o.paymentStatus === "PAID" ? "UNPAID" : "PAID")}
-                      >
-                        {o.paymentStatus === "PAID" ? "Unpay" : "Mark Paid"}
-                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={o.paymentStatus === "PAID" ? "flat" : "solid"}
+                          color={o.paymentStatus === "PAID" ? "default" : "warning"}
+                          onPress={() => updateStatus(o.id, o.status, o.paymentStatus === "PAID" ? "UNPAID" : "PAID")}
+                        >
+                          {o.paymentStatus === "PAID" ? "Unpay" : "Mark Paid"}
+                        </Button>
+                        <Button size="sm" variant="light" className="h-8 w-8 min-w-0 px-0" onPress={() => printOrder(o)}>
+                          <FiPrinter size={12} />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
