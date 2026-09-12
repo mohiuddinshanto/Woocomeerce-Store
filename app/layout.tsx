@@ -10,6 +10,16 @@ export const metadata: Metadata = {
 
 type ThemeSettings = { primaryColor?: string; secondaryColor?: string; font?: string };
 
+function shade(hex: string, amt: number): string {
+  const c = hex.replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(c)) return hex;
+  const num = parseInt(c, 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let theme: ThemeSettings = {};
   try {
@@ -22,10 +32,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     /* The onboarding page remains usable before the API is available. */
   }
 
+  const primary = /^#[0-9a-fA-F]{6}$/.test(theme.primaryColor ?? "") ? theme.primaryColor! : "#4f46e5";
+  const secondary = theme.secondaryColor ?? "#ffffff";
   const style = {
-    "--primary": theme.primaryColor ?? "#4f46e5",
-    "--primary-hover": "#4338ca",
-    "--secondary": theme.secondaryColor ?? "#ffffff",
+    "--color-primary": primary,
+    "--color-primary-dark": shade(primary, -14),
+    "--primary": primary,
+    "--primary-hover": shade(primary, -18),
+    "--primary-light": shade(primary, 160),
+    "--primary-gradient": `linear-gradient(135deg, ${primary} 0%, ${shade(primary, 40)} 100%)`,
+    "--secondary": secondary,
     "--store-font": theme.font && theme.font !== "Arial" ? theme.font : "'Plus Jakarta Sans', sans-serif",
   } as CSSProperties;
 

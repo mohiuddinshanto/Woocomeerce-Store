@@ -50,6 +50,7 @@ type HomePageConfigShape = {
 
 type Config = {
   storeName: string;
+  themeSettings?: { primaryColor?: string; secondaryColor?: string; font?: string };
   featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean };
   paymentConfig?: {
     bkash?: { enabled: boolean; mode?: string; callbackUrl?: string; appKey?: string; appSecret?: string; username?: string; password?: string };
@@ -3293,6 +3294,7 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
 /* ==================== FEATURES ==================== */
 function FeatureSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
   const flags = config.featureFlags;
+  const theme = config.themeSettings ?? {};
 
   function ToggleRow({ label, description, selected, onChange }: { label: string; description: string; selected: boolean; onChange: (v: boolean) => void }) {
     return (
@@ -3325,6 +3327,44 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Store Name" defaultValue={config.storeName} onBlur={(e) => e.target.value !== config.storeName && save({ storeName: e.target.value })} />
           <Input type="number" label="Cooldown Minutes" defaultValue={String(config.cooldownMinutes)} onBlur={(e) => save({ cooldownMinutes: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <h3 className="font-display font-bold text-gray-900 dark:text-white mb-5">Brand & Theme</h3>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Colors &amp; font apply to the whole store instantly (header, buttons, badges, text).</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Primary / Accent Color</label>
+            <input
+              type="color"
+              defaultValue={theme.primaryColor ?? "#4f46e5"}
+              onBlur={(e) => save({ themeSettings: { ...theme, primaryColor: e.target.value } })}
+              className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Background Color</label>
+            <input
+              type="color"
+              defaultValue={theme.secondaryColor ?? "#ffffff"}
+              onBlur={(e) => save({ themeSettings: { ...theme, secondaryColor: e.target.value } })}
+              className="h-10 w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-500 dark:text-slate-400 block mb-1.5">Font</label>
+            <Select
+              size="sm"
+              aria-label="Font"
+              selectedKeys={[theme.font ?? "Plus Jakarta Sans"]}
+              onChange={(e) => save({ themeSettings: { ...theme, font: e.target.value } })}
+            >
+              {["Plus Jakarta Sans", "Outfit", "Arial", "Georgia", "Inter"].map((f) => (
+                <SelectItem key={f}>{f}</SelectItem>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
     </div>
