@@ -242,14 +242,7 @@ const STATUS_COLORS: Record<string, string> = {
 const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400";
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: "অপেক্ষমান",
-  CONFIRMED: "নিশ্চিত",
-  PACKED: "প্যাক করা হয়েছে",
-  SENT: "কুরিয়ারে পাঠানো হয়েছে",
-  SHIPPED: "পাঠানো হয়েছে",
-  DELIVERED: "ডেলিভারি সম্পন্ন",
-  CANCELLED: "বাতিল",
-  RETURNED: "ফেরত আসা হয়েছে",
+  SENT: "In Courier",
 };
 
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";

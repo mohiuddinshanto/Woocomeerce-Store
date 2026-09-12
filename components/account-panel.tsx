@@ -47,14 +47,7 @@ function initials(name: string) {
 }
 
 const ORDER_LABEL: Record<string, string> = {
-  PENDING: "অপেক্ষমান",
-  CONFIRMED: "নিশ্চিত",
-  PACKED: "প্যাক করা হয়েছে",
-  SENT: "কুরিয়ারে পাঠানো হয়েছে",
-  SHIPPED: "পাঠানো হয়েছে",
-  DELIVERED: "ডেলিভারি সম্পন্ন",
-  CANCELLED: "বাতিল",
-  RETURNED: "ফেরত আসা হয়েছে",
+  SENT: "In Courier",
 };
 
 function StatusChip({ status }: { status: string }) {
