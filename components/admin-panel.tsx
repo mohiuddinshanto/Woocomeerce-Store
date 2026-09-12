@@ -2923,6 +2923,18 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                         >
                           {o.paymentStatus === "PAID" ? "Unpay" : "Mark Paid"}
                         </Button>
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Button size="sm" variant="flat" className="h-8 text-xs font-bold min-w-0" isDisabled={!couriers.length}>
+                              <FiSend size={12} /> {o.courierName ? "Resend" : "Send"}
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu aria-label="Send to courier" onAction={(key) => sendToCourier(o, key as string)}>
+                            {couriers.map((c) => (
+                              <DropdownItem key={c.key}>Send via {c.label}</DropdownItem>
+                            ))}
+                          </DropdownMenu>
+                        </Dropdown>
                         <Button size="sm" variant="light" className="h-8 w-8 min-w-0 px-0" onPress={() => printOrder(o)}>
                           <FiPrinter size={12} />
                         </Button>
