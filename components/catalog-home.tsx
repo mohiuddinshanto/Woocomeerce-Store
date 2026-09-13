@@ -80,7 +80,7 @@ const CTA = ({ label, href, primary }: { label: string; href?: string; primary?:
   return <button className={base} onClick={() => scrollToId("#shop")}>{text} <FiArrowRight size={14} /></button>;
 };
 
-function CatalogCard({
+export function CatalogCard({
   p,
   allowAddToCart,
   add,

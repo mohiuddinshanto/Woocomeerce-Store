@@ -1578,7 +1578,7 @@ function MobileNavLink({ item, categories, pathname, onNavigate }: { item: MenuI
   );
 }
 
-function MiniProductCard({
+export function MiniProductCard({
   p,
   onAdd,
   buyNow,

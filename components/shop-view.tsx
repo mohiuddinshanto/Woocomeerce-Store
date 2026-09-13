@@ -23,6 +23,8 @@ import {
   FiX,
   FiZap,
 } from "react-icons/fi";
+import { CatalogCard } from "./catalog-home";
+import { MiniProductCard } from "./storefront";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const FALLBACK_IMG =
@@ -1296,19 +1298,42 @@ export function ShopView() {
                     : "grid grid-cols-2 gap-3 sm:grid-cols-3"
                 }
               >
-                {sortedProducts.map((p) => (
-                  <ShopProductCard
-                    key={p.id}
-                    p={p}
-                    allowAddToCart={allowAddToCart}
-                    add={addToCart}
-                    buyNow={buyNowAction}
-                    whatsapp={whatsapp}
-                    isList={layoutMode === "list"}
-                    wishlisted={wishlist.includes(p.id)}
-                    onWishlist={handleWishlistToggle}
-                  />
-                ))}
+                {sortedProducts.map((p) =>
+                  layoutMode === "list" ? (
+                    <ShopProductCard
+                      key={p.id}
+                      p={p}
+                      allowAddToCart={allowAddToCart}
+                      add={addToCart}
+                      buyNow={buyNowAction}
+                      whatsapp={whatsapp}
+                      isList
+                      wishlisted={wishlist.includes(p.id)}
+                      onWishlist={handleWishlistToggle}
+                    />
+                  ) : activeLayout === "classic" ? (
+                    <MiniProductCard
+                      key={p.id}
+                      p={p}
+                      onAdd={() => addToCart(p)}
+                      buyNow={() => buyNowAction(p)}
+                      allowAddToCart={allowAddToCart}
+                      wishlisted={wishlist.includes(p.id)}
+                      onWishlist={handleWishlistToggle}
+                      fill
+                    />
+                  ) : (
+                    <CatalogCard
+                      key={p.id}
+                      p={p}
+                      allowAddToCart={allowAddToCart}
+                      add={addToCart}
+                      buyNow={buyNowAction}
+                      whatsapp={whatsapp}
+                      fill
+                    />
+                  )
+                )}
               </div>
             ) : (
               /* EMPTY NO RESULTS STATE */
