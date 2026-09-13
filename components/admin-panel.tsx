@@ -3518,7 +3518,7 @@ function MarketingChatSettings({ config, save, saving }: { config: Config; save:
             </label>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" />
+            <Input label="WhatsApp Number" name="waNumber" defaultValue={chat.whatsapp?.number} placeholder="8801712345678" description="যেকোনো ফরম্যাটে দিন (017..., +880..., 880...) — নিজেই সঠিক হবে" />
             <Input label="WhatsApp Message Template" name="waTemplate" defaultValue={chat.whatsapp?.template} placeholder="Hello, I want to order..." />
             <Input label="Facebook Messenger Page URL" name="messengerUrl" defaultValue={chat.messenger?.url} placeholder="https://m.me/yourpage" />
             <Input label="Support Phone Number" name="phone" defaultValue={chat.phone} placeholder="01712345678" />

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { waNumber } from "../lib/wa";
 import { FiArrowLeft, FiHeart, FiMessageCircle, FiShoppingBag, FiZap } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -209,7 +210,7 @@ export function CategoryView({ slug }: { slug: string }) {
       .catch(() => {});
   }, []);
 
-  const whatsapp = chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null;
+  const whatsapp = chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${waNumber(chatConfig.whatsapp.number)}` : null;
 
   function addToCart(p: Product, variation?: Variation) {
     const price = variation

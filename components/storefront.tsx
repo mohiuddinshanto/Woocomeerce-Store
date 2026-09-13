@@ -4,6 +4,7 @@ import { Button } from "@heroui/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { waNumber } from "../lib/wa";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CarouselSlider } from "./carousel-slider";
@@ -679,7 +680,7 @@ export function Storefront() {
   }
 
   const whatsappUrl = chatConfig?.whatsapp?.number
-    ? `https://wa.me/${chatConfig.whatsapp.number}?text=${encodeURIComponent(chatConfig.whatsapp.template ?? "Hello, I have an inquiry about your store.")}`
+    ? `https://wa.me/${waNumber(chatConfig.whatsapp.number)}?text=${encodeURIComponent(chatConfig.whatsapp.template ?? "Hello, I have an inquiry about your store.")}`
     : null;
 
   return (
@@ -826,7 +827,7 @@ export function Storefront() {
           heroSlides={hero.slides}
           heroSeconds={hero.seconds}
           allowAddToCart={allowAddToCart}
-          whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${chatConfig.whatsapp.number}` : null}
+          whatsapp={chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number ? `https://wa.me/${waNumber(chatConfig.whatsapp.number)}` : null}
           add={add}
           buyNow={buyNow}
           sections={homeConfig?.sections}

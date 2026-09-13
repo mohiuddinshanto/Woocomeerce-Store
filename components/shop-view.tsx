@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { waNumber } from "../lib/wa";
 import {
   FiArrowLeft,
   FiCheck,
@@ -518,7 +519,7 @@ export function ShopView({ initialLayout = "classic" }: { initialLayout?: "class
 
   const whatsapp =
     chatConfig?.whatsapp?.enabled && chatConfig.whatsapp.number
-      ? `https://wa.me/${chatConfig.whatsapp.number}`
+      ? `https://wa.me/${waNumber(chatConfig.whatsapp.number)}`
       : null;
 
   // Extract all available size options from products
