@@ -2959,7 +2959,14 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-white/4">
                 {orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-white/3 transition-colors">
+                  <tr
+                      key={o.id}
+                      className="hover:bg-gray-50 dark:hover:bg-white/3 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button,select,input,a,label,[role='menu'],[role='menuitem']")) return;
+                        setDetail(o);
+                      }}
+                    >
                     <td className="py-3 px-4 text-xs text-primary font-bold">#{o.id.slice(0, 8)}</td>
                     <td className="py-3 px-4 font-medium text-gray-800 dark:text-slate-200 text-xs">{o.shippingDetails?.name ?? "Guest"}</td>
                     <td className="py-3 px-4 text-gray-400 dark:text-slate-500 text-xs whitespace-nowrap">{new Date(o.createdAt).toLocaleDateString()}</td>
