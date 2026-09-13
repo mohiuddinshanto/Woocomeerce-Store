@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiMenu, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMenu, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -74,7 +74,7 @@ type HomePageConfigShape = {
 type Config = {
   storeName: string;
   themeSettings?: { primaryColor?: string; secondaryColor?: string; font?: string };
-  featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean };
+  featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean; checkoutEmail: boolean };
   paymentConfig?: {
     bkash?: { enabled: boolean; mode?: string; callbackUrl?: string; appKey?: string; appSecret?: string; username?: string; password?: string };
     nagad?: { enabled: boolean; mode?: string; callbackUrl?: string; merchantId?: string; merchantNumber?: string; privateKey?: string };
@@ -517,7 +517,7 @@ export function AdminPanel() {
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
           {section === "features" && <FeatureSettings config={config} save={save} saving={saving} />}
 {section === "payments" && <PaymentSettings config={config} save={save} saving={saving} />}
-        {section === "delivery" && <DeliverySettings config={config} save={save} saving={saving} />}
+        {section === "delivery" && <DeliverySettings config={config} save={save} saving={saving} token={token} />}
           {section === "storage" && <StorageSettings save={save} saving={saving} configured={config.storageConfigured} storage={config.storageConfig} />}
         </div>
       </div>
@@ -3387,6 +3387,7 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
           <ToggleRow label="Wishlist Feature" description="Enable wishlist saving for customer accounts." selected={flags.wishlist} onChange={(wishlist) => save({ featureFlags: { ...flags, wishlist } })} />
           <ToggleRow label="Coupons & Discount Codes" description="Enable promo code discounts at checkout." selected={flags.coupons} onChange={(coupons) => save({ featureFlags: { ...flags, coupons } })} />
           <ToggleRow label="Add to Cart in product lists" description="ON: lists show the Add to Cart button (current). OFF: lists show only an Order Now button that goes straight to checkout. The single product page always keeps both." selected={flags.addToCart} onChange={(addToCart) => save({ featureFlags: { ...flags, addToCart } })} />
+          <ToggleRow label="Email field at checkout" description="ON: customers see a (optional) email field at checkout and receive an order confirmation email when SMTP is configured." selected={flags.checkoutEmail} onChange={(checkoutEmail) => save({ featureFlags: { ...flags, checkoutEmail } })} />
           <ToggleRow label="Order IP Rate Limit" description="Protect against repeated automated spam orders." selected={config.enableIpLimit} onChange={(enableIpLimit) => save({ enableIpLimit })} />
         </div>
       </div>
@@ -4604,10 +4605,11 @@ function BannerSettings({ save, saving, config, token }: { save: (payload: objec
 }
 
 /* ==================== DELIVERY ==================== */
-function DeliverySettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
+function DeliverySettings({ save, saving, config, token }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config; token: string }) {
   const [steadfast, setSteadfast] = useState(Boolean(config.courierConfig?.steadfast?.enabled));
   const [pathao, setPathao] = useState(Boolean(config.courierConfig?.pathao?.enabled));
   const [redx, setRedx] = useState(Boolean(config.courierConfig?.redx?.enabled));
+  const [testSending, setTestSending] = useState(false);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -4650,6 +4652,35 @@ function DeliverySettings({ save, saving, config }: { save: (payload: object) =>
           <Input name="emailPass" type="password" label="SMTP Password" defaultValue={config.emailConfig?.pass ?? ""} />
           <Input className="sm:col-span-2" name="fromEmail" type="email" label="Sender Email" defaultValue={config.emailConfig?.fromEmail ?? ""} />
         </div>
+        <button
+          type="button"
+          disabled={testSending || !config.emailConfigured}
+          onClick={async () => {
+            const to = window.prompt("Send test email to:", config.emailConfig?.fromEmail ?? "");
+            if (!to) return;
+            setTestSending(true);
+            try {
+              const response = await fetch(apiUrl + "/api/admin/test-email", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                body: JSON.stringify({ to }),
+              });
+              const data = await response.json();
+              if (!response.ok) throw new Error(data.error);
+              toast.success(`Test email sent to ${to}!`);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : "Could not send test email");
+            } finally {
+              setTestSending(false);
+            }
+          }}
+          className="mt-4 inline-flex items-center gap-2 px-4 h-9 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition disabled:opacity-50"
+        >
+          {testSending ? <FiLoader className="animate-spin" size={14} /> : <FiSend size={14} />} Send Test Email
+        </button>
+        {!config.emailConfigured && (
+          <p className="mt-2 text-xs text-gray-400">Save the SMTP settings above first, then send a test email.</p>
+        )}
       </div>
 
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">

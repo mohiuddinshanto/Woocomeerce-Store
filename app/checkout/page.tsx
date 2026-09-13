@@ -9,6 +9,7 @@ import {
   FiCheckCircle,
   FiCreditCard,
   FiLock,
+  FiMail,
   FiMapPin,
   FiPhone,
   FiShield,
@@ -42,6 +43,7 @@ export default function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [couponId, setCouponId] = useState<string | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [requiresEmail, setRequiresEmail] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shipping = subtotal ? 80 : 0;
@@ -63,6 +65,7 @@ export default function CheckoutPage() {
         } else {
           setMethods([{ id: "COD", label: "Cash on delivery" }]);
         }
+        setRequiresEmail(Boolean(data.requiresEmail));
       })
       .catch(() => {
         setMethods([{ id: "COD", label: "Cash on delivery" }]);
@@ -123,6 +126,7 @@ export default function CheckoutPage() {
           shippingDetails: {
             name: form.get("name"),
             phone: form.get("phone"),
+            email: requiresEmail ? form.get("email") : null,
             address: form.get("address"),
             district: form.get("district"),
             division: form.get("division"),
@@ -188,6 +192,15 @@ export default function CheckoutPage() {
                 isRequired
                 startContent={<FiPhone className="text-gray-400" />}
               />
+              {requiresEmail && (
+                <Input
+                  type="email"
+                  name="email"
+                  label="Email address (optional)"
+                  placeholder="you@example.com"
+                  startContent={<FiMail className="text-gray-400" />}
+                />
+              )}
               <Input
                 className="full"
                 name="address"
