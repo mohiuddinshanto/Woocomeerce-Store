@@ -4,7 +4,7 @@ import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Input, S
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMenu, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiX } from "react-icons/fi";
+import { FiArrowDown, FiArrowUp, FiBox, FiCheck, FiChevronDown, FiCopy, FiEdit2, FiEye, FiEyeOff, FiImage, FiLayers, FiLoader, FiMail, FiMenu, FiPhone, FiPlus, FiPrinter, FiRefreshCw, FiSend, FiShuffle, FiStar, FiTag, FiTrash2, FiTruck, FiUpload, FiUser, FiX } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -227,7 +227,7 @@ type Order = {
   createdAt: string;
   paymentStatus: string;
   customerId: string | null;
-  shippingDetails: { name?: string; phone?: string; address?: string; district?: string; sfStatus?: string; sfSyncedAt?: string; sfConsignmentId?: string; sfTrackingCode?: string } | null;
+  shippingDetails: { name?: string; phone?: string; email?: string; address?: string; district?: string; division?: string; sfStatus?: string; sfSyncedAt?: string; sfConsignmentId?: string; sfTrackingCode?: string } | null;
   orderItems?: { name: string; qty: number; price: number; sku?: string }[];
   subtotal?: string;
   shippingCharge?: string;
@@ -2474,6 +2474,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [sfBalance, setSfBalance] = useState<number | null>(null);
   const [sfBalVisible, setSfBalVisible] = useState(false);
   const [loadingBal, setLoadingBal] = useState(false);
+  const [detail, setDetail] = useState<Order | null>(null);
 
   const load = () => {
     api("/api/admin/orders", token)
@@ -2877,7 +2878,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 </div>
                 <div className="space-y-3">
                   {colOrders.map((o) => (
-                    <div key={o.id} className="min-w-0 bg-white dark:bg-[#111118] rounded-xl border border-gray-100 dark:border-white/6 p-4 hover:border-primary/20 transition-all hover:shadow-md">
+                    <div key={o.id} className="min-w-0 bg-white dark:bg-[#111118] rounded-xl border border-gray-100 dark:border-white/6 p-4 hover:border-primary/20 transition-all hover:shadow-md cursor-pointer" onClick={() => setDetail(o)}>
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <span className="font-mono text-xs font-bold text-primary truncate">#{o.id.slice(0, 6)}</span>
                         <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${o.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
@@ -3007,6 +3008,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                         <Button size="sm" variant="light" className="h-8 w-8 min-w-0 px-0" onPress={() => printOrder(o)}>
                           <FiPrinter size={12} />
                         </Button>
+                        <Button size="sm" variant="flat" className="h-8 text-xs font-bold min-w-0 px-2.5" onPress={() => setDetail(o)}>
+                          <FiEye size={12} /> Details
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -3020,6 +3024,114 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" onClick={() => setDetail(null)}>
+          <div
+            className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white dark:bg-[#111118] rounded-t-2xl sm:rounded-2xl border border-gray-100 dark:border-white/8 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-white/6 sticky top-0 bg-white dark:bg-[#111118] z-10">
+              <div>
+                <p className="font-mono text-sm font-bold text-primary">ORDER #{detail.id.slice(0, 8).toUpperCase()}</p>
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">Placed {new Date(detail.createdAt).toLocaleString("en-GB")}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => printOrder(detail)} className="grid place-items-center w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 hover:text-primary hover:border-primary/40 transition-colors" title="Print">
+                  <FiPrinter size={14} />
+                </button>
+                <button type="button" onClick={() => setDetail(null)} className="grid place-items-center w-8 h-8 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 hover:text-rose-500 transition-colors" title="Close">
+                  <FiX size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${statusPill(detail.status)}`}>{detail.status}</span>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${detail.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
+                  Payment: {detail.paymentStatus}
+                </span>
+                {detail.courierName && (
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-500">
+                    {detail.courierName}{detail.courierTrackingId ? ` · ${detail.courierTrackingId}` : ""}
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-white/6 p-4">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-3">Customer Details</p>
+                <div className="grid grid-cols-1 gap-2 text-xs">
+                  <p className="flex items-center gap-2 text-gray-800 dark:text-slate-200 font-semibold"><FiUser className="text-primary" /> {detail.shippingDetails?.name ?? "Guest"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiPhone className="text-primary" /> {detail.shippingDetails?.phone ?? "—"}</p>
+                  <p className="flex items-center gap-2 text-gray-700 dark:text-slate-300"><FiMail className="text-primary" /> {detail.shippingDetails?.email || "—"}</p>
+                  <p className="flex items-start gap-2 text-gray-700 dark:text-slate-300">
+                    <FiTruck className="text-primary mt-0.5 shrink-0" />
+                    <span>
+                      {[detail.shippingDetails?.address, detail.shippingDetails?.district, detail.shippingDetails?.division].filter(Boolean).join(", ") || "—"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-white/6 p-4">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-3">Items</p>
+                <div className="space-y-2">
+                  {(detail.orderItems ?? []).map((item, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-gray-800 dark:text-slate-200">
+                        {item.name} <span className="text-gray-400">× {item.qty}</span>
+                        {item.sku && <span className="ml-2 font-mono text-[10px] text-gray-400">{item.sku}</span>}
+                      </span>
+                      <strong className="whitespace-nowrap text-gray-900 dark:text-white">{money(Number(item.price) * Number(item.qty))}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-dashed border-gray-100 dark:border-white/6 space-y-1.5 text-xs">
+                  <div className="flex justify-between text-gray-500 dark:text-slate-400"><span>Subtotal</span><strong className="text-gray-800 dark:text-slate-200">{money(detail.subtotal ?? 0)}</strong></div>
+                  {Number(detail.discountAmount) > 0 && (
+                    <div className="flex justify-between text-emerald"><span>Discount{detail.coupon ? ` (${detail.coupon.code})` : ""}</span><strong>- {money(detail.discountAmount ?? 0)}</strong></div>
+                  )}
+                  <div className="flex justify-between text-gray-500 dark:text-slate-400"><span>Shipping</span><strong className="text-gray-800 dark:text-slate-200">{money(detail.shippingCharge ?? 0)}</strong></div>
+                  <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-white/6 font-bold text-sm text-gray-900 dark:text-white">
+                    <span>Total</span><span>{money(detail.totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 dark:border-white/6 p-4 space-y-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-2">Change Status</p>
+                  <Select size="sm" aria-label="Order status" selectedKeys={[detail.status]} onChange={(e) => { updateStatus(detail.id, e.target.value, detail.paymentStatus); setDetail(null); }} className="w-full">
+                    {columns.map((s) => (<SelectItem key={s}>{s}</SelectItem>))}
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={detail.paymentStatus === "PAID" ? "flat" : "solid"}
+                    color={detail.paymentStatus === "PAID" ? "default" : "warning"}
+                    onPress={() => { updateStatus(detail.id, detail.status, detail.paymentStatus === "PAID" ? "UNPAID" : "PAID"); setDetail(null); }}
+                    className="flex-1"
+                  >
+                    {detail.paymentStatus === "PAID" ? "Mark Unpaid" : "Mark Paid"}
+                  </Button>
+                  <Dropdown>
+                    <DropdownTrigger>
+                      <Button size="sm" variant="flat" className="flex-1 text-xs font-bold" isDisabled={!couriers.length}>
+                        <FiSend size={12} /> Send to courier
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu aria-label="Send to courier" onAction={(key) => { sendToCourier(detail, key as string); setDetail(null); }}>
+                      {couriers.map((c) => (<DropdownItem key={c.key}>Send via {c.label}</DropdownItem>))}
+                    </DropdownMenu>
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
