@@ -131,9 +131,14 @@ export default function CheckoutPage() {
       toast.error("Your bag is empty");
       return;
     }
+    const enabledFields = Object.entries(form).filter(([, field]) => field.enabled);
+    if (!enabledFields.length) {
+      toast.error("Checkout form is not loaded. Please refresh and try again.");
+      return;
+    }
 
     setSaving(true);
-    const form = new FormData(event.currentTarget);
+    const fd = new FormData(event.currentTarget);
 
     try {
       const response = await fetch(apiUrl + "/api/orders", {
@@ -152,9 +157,8 @@ export default function CheckoutPage() {
           couponId: couponId || undefined,
           totalAmount,
           shippingDetails: Object.fromEntries(
-            Object.entries(form)
-              .filter(([, field]) => field.enabled)
-              .map(([key]) => [key, form.get(key)]),
+            enabledFields
+              .map(([key]) => [key, fd.get(key)]),
           ),
           orderItems: cart.map((item) => ({
             productId: item.id,
