@@ -44,9 +44,8 @@ export function SiteHeader() {
       </Link>
 
       <div className="nav-links">
-        <Link href="/" className="active">
-          Home
-        </Link>
+        <Link href="/">Home</Link>
+        <Link href="/shop" className="active">Shop</Link>
         <Link href="/account">My Profile</Link>
       </div>
 

@@ -3868,7 +3868,7 @@ function HomeLayoutSettings({ config, save, saving, token }: { config: Config; s
       <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
         <p className="text-sm font-medium text-gray-800 dark:text-slate-200 mb-1">Default home page style</p>
         <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">
-          Customers will see this layout whenever they open the home page. You can switch any time.
+          Customers will see this layout on the home page and the /shop page. You can switch any time.
         </p>
         <Select
           label="Home layout"

@@ -23,6 +23,13 @@
   --primary-light: #eef2ff;
   --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   --secondary: #ffffff;
+  --shop-brand: #093d2b;
+  --shop-brand-hover: #0c4e37;
+  --shop-brand-soft: #ecfdf5;
+  --shop-brand-soft-strong: #d1fae5;
+  --shop-brand-border: #a7f3d0;
+  --shop-brand-text: #065f46;
+  --shop-brand-text-strong: #064e3b;
   --ink: #0f172a;
   --ink-secondary: #334155;
   --muted: #64748b;
@@ -39,6 +46,16 @@
   --shadow-lg: 0 25px 50px -12px rgba(15, 23, 42, 0.15);
   --shadow-glow: 0 10px 30px rgba(79, 70, 229, 0.25);
 --store-font: 'Plus Jakarta Sans', sans-serif;
+}
+
+.shop-theme-classic {
+  --shop-brand: var(--primary);
+  --shop-brand-hover: var(--primary-hover);
+  --shop-brand-soft: var(--primary-light);
+  --shop-brand-soft-strong: #c7d2fe;
+  --shop-brand-border: #c7d2fe;
+  --shop-brand-text: var(--primary);
+  --shop-brand-text-strong: #312e81;
 }
 
 .glass {

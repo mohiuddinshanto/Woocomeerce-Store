@@ -237,7 +237,7 @@ const DEFAULT_HERO: Required<Pick<HeroBannerConfig, "badge" | "title" | "accent"
   subtitle:
     "Thoughtfully curated premium pieces designed to work beautifully every single day — from Dhaka to Dhaka, delivered everywhere in between.",
   buttonLabel: "Explore Collection",
-  buttonLink: "#categories",
+  buttonLink: "/shop",
   secondaryLabel: "Shop by Category",
   secondaryLink: "#categories",
   announceText: "ঈদ ও উৎসব কালেকশন: ৳৩,০০০+ অর্ডারে ঢাকা ও চট্টগ্রামে ফ্রি এক্সপ্রেস ডেলিভারি",

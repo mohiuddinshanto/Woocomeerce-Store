@@ -380,7 +380,7 @@ export function CatalogHome({
       accent: "ঐতিহ্যের ছোঁয়া",
       subtitle: "বিশেষ ডিজাইনের পণ্য এখন আপনার জন্য",
       buttonLabel: "কালেকশন দেখুন →",
-      buttonLink: "#shop",
+      buttonLink: "/shop",
       image: products[0]?.images[0] || FALLBACK,
       theme: "amber",
       linkSide: "left",
@@ -392,7 +392,7 @@ export function CatalogHome({
       accent: "সেট পণ্য",
       subtitle: "আকর্ষণীয় মূল্যে কম্বো অফার",
       buttonLabel: "সেট দেখুন →",
-      buttonLink: "#shop",
+      buttonLink: "/shop",
       image: products[1]?.images[0] || products[0]?.images[0] || FALLBACK,
       theme: "emerald",
       linkSide: "right",
@@ -495,7 +495,7 @@ export function CatalogHome({
             </span>
             <h2 className="text-xl font-bold text-gray-900 md:text-2xl">ক্যাটাগরি সমূহ</h2>
           </div>
-          <Link href="#shop" className="flex items-center gap-1 text-sm font-semibold text-[#093d2b] hover:underline">
+          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-[#093d2b] hover:underline">
             সকল দেখুন <span>→</span>
           </Link>
         </div>

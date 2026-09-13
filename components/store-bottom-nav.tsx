@@ -100,8 +100,8 @@ export function StoreBottomNav() {
             <FiHome className="text-base" /> Home
           </Link>
           <Link
-            href="/#shop"
-            className="flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold text-slate-500"
+            href="/shop"
+            className={`flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold ${pathname === "/shop" ? "text-[var(--primary)]" : "text-slate-500"}`}
           >
             <FiGrid className="text-base" /> Shop
           </Link>
