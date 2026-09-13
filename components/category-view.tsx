@@ -89,14 +89,14 @@ function CatalogCard({
             <Image src={img} alt={p.name} fill sizes="(max-width: 650px) 50vw, 290px" className="object-cover object-top transition duration-500 group-hover:scale-105" />
           </Link>
         </div>
-        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[#093d2b]">{p.name}</Link>
+        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">{p.name}</Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-lg font-bold text-gray-900">{money(displayPrice)}</span>
           {displayOriginal && <span className="text-xs text-gray-400 line-through">{money(displayOriginal)}</span>}
         </div>
         {sizes.length > 0 && (
           <div className="mb-3">
-            <p className="mb-1.5 text-sm font-medium text-gray-600">সাইজ সিলেক্ট করুন:{selectedSize && <span className="ml-1 font-bold text-[#093d2b]">({selectedSize})</span>}</p>
+            <p className="mb-1.5 text-sm font-medium text-gray-600">সাইজ সিলেক্ট করুন:{selectedSize && <span className="ml-1 font-bold text-[var(--primary)]">({selectedSize})</span>}</p>
             <div className="flex flex-wrap items-center gap-1">
               {sizes.map((size) => {
                 const sv = (p.variations ?? []).find((v) => v.attributes.some((va) => va.value.value === size));
@@ -104,7 +104,7 @@ function CatalogCard({
                 const sel = selectedSize === size;
                 return (
                   <button key={size} type="button" onClick={() => setSelectedSize(size)}
-                    className={`min-w-[36px] rounded px-2 py-1 text-center text-xs font-semibold leading-tight transition ${oos ? (sel ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm" : "border border-dashed border-gray-300 bg-gray-50 text-gray-400") : sel ? "border-2 border-[#093d2b] bg-[#093d2b] text-white shadow-sm" : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[#093d2b] hover:bg-emerald-50"}`}>
+                    className={`min-w-[36px] rounded px-2 py-1 text-center text-xs font-semibold leading-tight transition ${oos ? (sel ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm" : "border border-dashed border-gray-300 bg-gray-50 text-gray-400") : sel ? "border-2 border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--primary)] hover:bg-emerald-50"}`}>
                     {size}{oos ? " ✕" : ""}
                   </button>
                 );
@@ -114,7 +114,7 @@ function CatalogCard({
         )}
       </div>
       <div className="space-y-2">
-        <button type="button" onClick={handleBuyNow} className="flex w-full items-center justify-center gap-1.5 whitespace-normal rounded-lg bg-[#093d2b] px-2 py-2.5 text-center text-sm font-bold leading-tight text-white shadow transition hover:bg-[#0c4e37] hover:shadow-md active:scale-[0.98]">
+        <button type="button" onClick={handleBuyNow} className="flex w-full items-center justify-center gap-1.5 whitespace-normal rounded-lg bg-[var(--primary)] px-2 py-2.5 text-center text-sm font-bold leading-tight text-white shadow transition hover:bg-[var(--primary-hover)] hover:shadow-md active:scale-[0.98]">
           <span className="text-sm text-amber-400">⚡</span><span>সরাসরি অর্ডার করুন</span>
         </button>
         <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">

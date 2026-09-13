@@ -181,7 +181,7 @@ export function CatalogCard({
             />
           </Link>
         </div>
-        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[#093d2b]">
+        <Link href={`/products/${p.slug}`} className="mb-1 block text-base font-bold leading-snug text-gray-900 line-clamp-2 hover:text-[var(--primary)]">
           {p.name}
         </Link>
         <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -193,7 +193,7 @@ export function CatalogCard({
           <div className="mb-3">
             <p className="mb-1.5 text-sm font-medium text-gray-600">
               সাইজ সিলেক্ট করুন:
-              {selectedSize && <span className="ml-1 font-bold text-[#093d2b]">({selectedSize})</span>}
+              {selectedSize && <span className="ml-1 font-bold text-[var(--primary)]">({selectedSize})</span>}
             </p>
             <div className="flex flex-wrap items-center gap-1">
               {sizes.map((size) => {
@@ -213,8 +213,8 @@ export function CatalogCard({
                           ? "border-2 border-gray-400 bg-gray-300 text-white shadow-sm"
                           : "border border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:border-gray-400"
                         : isSelected
-                          ? "border-2 border-[#093d2b] bg-[#093d2b] text-white shadow-sm"
-                          : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[#093d2b] hover:bg-emerald-50"
+                          ? "border-2 border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm"
+                          : "border border-gray-200 bg-gray-50 text-gray-700 hover:border-[var(--primary)] hover:bg-emerald-50"
                       }`}
                   >
                     {size}{outOfStock ? " ✕" : ""}
@@ -230,7 +230,7 @@ export function CatalogCard({
         <button
           type="button"
           onClick={handleBuyNow}
-          className="flex w-full items-center justify-center gap-1.5 whitespace-normal rounded-lg bg-[#093d2b] px-3 py-2.5 text-center text-sm font-bold leading-tight text-white shadow transition hover:bg-[#0c4e37] hover:shadow-md active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-1.5 whitespace-normal rounded-lg bg-[var(--primary)] px-3 py-2.5 text-center text-sm font-bold leading-tight text-white shadow transition hover:bg-[var(--primary-hover)] hover:shadow-md active:scale-[0.98]"
         >
           <span className="text-sm text-amber-400">⚡</span>
           <span>সরাসরি অর্ডার করুন</span>
@@ -407,7 +407,7 @@ export function CatalogHome({
         ? {
             card: "border border-amber-200 bg-gradient-to-r from-amber-100 to-amber-50",
             badge: "bg-amber-200/70 text-amber-900",
-            accent: "text-[#093d2b]",
+            accent: "text-[var(--primary)]",
           }
         : {
             card: "border border-emerald-200 bg-gradient-to-r from-emerald-100/70 to-emerald-50",
@@ -437,7 +437,7 @@ export function CatalogHome({
         <div className="overflow-hidden rounded-2xl shadow-xl">
           <CarouselSlider
             items={heroSlides.map((s) => (
-              <div key={s.id} className="relative flex min-h-[360px] items-center overflow-hidden bg-gradient-to-r from-[#031d14] via-[#093d2b] to-[#12573d] text-white sm:min-h-[420px] md:min-h-[480px]">
+              <div key={s.id} className="relative flex min-h-[360px] items-center overflow-hidden bg-gradient-to-r from-[#031d14] via-[var(--primary)] to-[#12573d] text-white sm:min-h-[420px] md:min-h-[480px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={s.image} alt={s.title || "Banner"} className="absolute inset-0 h-full w-full object-cover opacity-40" />
                 <div className="relative z-10 grid w-full items-center gap-6 px-5 py-8 sm:px-8 sm:gap-6 md:grid-cols-12 md:px-14">
@@ -490,12 +490,12 @@ export function CatalogHome({
       <section id="categories" className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-[#093d2b]">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-[var(--primary)]">
               <FiShoppingBag size={18} />
             </span>
             <h2 className="text-xl font-bold text-gray-900 md:text-2xl">ক্যাটাগরি সমূহ</h2>
           </div>
-          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-[#093d2b] hover:underline">
+          <Link href="/shop" className="flex items-center gap-1 text-sm font-semibold text-[var(--primary)] hover:underline">
             সকল দেখুন <span>→</span>
           </Link>
         </div>
@@ -515,7 +515,7 @@ export function CatalogHome({
                   className="rounded-lg object-cover transition duration-300 group-hover:scale-105"
                 />
               </div>
-              <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[#093d2b] sm:text-[0.95rem]">{c.name}</h3>
+              <h3 className="truncate text-sm font-bold text-gray-800 group-hover:text-[var(--primary)] sm:text-[0.95rem]">{c.name}</h3>
               <p className="text-xs text-gray-400">({c.count} টি)</p>
             </Link>
           ))}
@@ -531,7 +531,7 @@ export function CatalogHome({
           </div>
           <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1">
             <button
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${activeTab === "all" ? "border-[#093d2b] bg-[#093d2b] text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-100"}`}
+              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${activeTab === "all" ? "border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-100"}`}
               onClick={() => setActiveTab("all")}
             >
               সবগুলো
@@ -539,7 +539,7 @@ export function CatalogHome({
             {tabCats.map((c) => (
               <button
                 key={c.id}
-                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${activeTab === c.id ? "border-[#093d2b] bg-[#093d2b] text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-100"}`}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${activeTab === c.id ? "border-[var(--primary)] bg-[var(--primary)] text-white shadow-sm" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-100"}`}
                 onClick={() => setActiveTab(c.id)}
               >
                 {c.name}
@@ -573,7 +573,7 @@ export function CatalogHome({
               <h2 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">{c.displayName}</h2>
             </div>
             {c.slug && (
-              <Link href={`/categories/${c.slug}`} className="mr-2 text-xs font-semibold text-[#093d2b] hover:underline sm:text-sm">
+              <Link href={`/categories/${c.slug}`} className="mr-2 text-xs font-semibold text-[var(--primary)] hover:underline sm:text-sm">
                 সবগুলো দেখুন →
               </Link>
             )}
@@ -619,7 +619,7 @@ export function CatalogHome({
                 const Ic = ICON_MAP[t.icon] ?? FiShield;
                 return (
                   <div key={t.title} className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#093d2b] text-white">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-white">
                       <Ic size={22} />
                     </div>
                     <div>
@@ -652,7 +652,7 @@ export function CatalogHome({
                       </h3>
                       <p className="text-sm text-gray-600">{p.subtitle}</p>
                       <div className="pt-2">
-                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
+                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)]">
                           {p.buttonLabel}
                         </Link>
                       </div>
@@ -685,7 +685,7 @@ export function CatalogHome({
                       </h3>
                       <p className="text-sm text-gray-600">{p.subtitle}</p>
                       <div className="flex justify-end pt-2">
-                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[#093d2b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0c4e37]">
+                        <Link href={p.buttonLink || "#shop"} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)]">
                           {p.buttonLabel}
                         </Link>
                       </div>

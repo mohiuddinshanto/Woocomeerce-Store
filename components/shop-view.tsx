@@ -441,7 +441,7 @@ function ShopProductCard({
 /* -------------------------------------------------------------------------- */
 /* MAIN SHOP VIEW COMPONENT                                                   */
 /* -------------------------------------------------------------------------- */
-export function ShopView() {
+export function ShopView({ initialLayout = "classic" }: { initialLayout?: "classic" | "catalog" }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -473,7 +473,7 @@ export function ShopView() {
   const [allowAddToCart, setAllowAddToCart] = useState(true);
   const [chatConfig, setChatConfig] = useState<{ whatsapp?: { enabled?: boolean; number?: string } } | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [activeLayout, setActiveLayout] = useState<"classic" | "catalog">("classic");
+  const [activeLayout, setActiveLayout] = useState<"classic" | "catalog">(initialLayout);
 
   // Fetch initial data
   useEffect(() => {
