@@ -270,6 +270,9 @@ const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dar
 
 const STATUS_LABEL: Record<string, string> = {
   SENT: "In Courier",
+  SHIPPED: "Shipped",
+  DELIVERED: "Delivered",
+  RETURNED: "Returned",
 };
 
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";

@@ -1,0 +1,11 @@
+
+> dev
+> next dev --turbopack
+
+   ▲ Next.js 15.5.25 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.10.217:3000
+
+ ✓ Starting...
+ ✓ Compiled middleware in 403ms
+ ✓ Ready in 5.9s
