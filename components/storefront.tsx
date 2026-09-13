@@ -38,7 +38,6 @@ import {
   FiZap,
   FiCheck,
   FiHeadphones,
-  FiGrid,
 } from "react-icons/fi";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -1243,7 +1242,7 @@ export function Storefront() {
         if (cfg.enabled === false) return null;
         const links = cfg.links && cfg.links.length > 0 ? cfg.links : DEFAULT_FOOTER_LINKS;
         return (
-          <footer className={`border-t border-slate-200 bg-slate-50 ${bottomNav ? "pb-24 md:pb-0" : "pb-16 md:pb-0"}`}>
+          <footer className="border-t border-slate-200 bg-slate-50 pb-16 md:pb-0">
             <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-4 px-[6vw] py-8 text-center sm:flex-row sm:text-left">
               <div className="flex items-center gap-3">
                 <Link href="/" className="brand">
@@ -1277,73 +1276,6 @@ export function Storefront() {
           </footer>
         );
       })()}
-
-      {/* Mobile bottom quick nav */}
-      {bottomNav ? (
-        <>
-          {totalCount > 0 && (
-            <button
-              onClick={() => setOpen(true)}
-              className="fixed bottom-[76px] right-3 z-40 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-primary to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-500/30 active:scale-[0.98] md:hidden"
-            >
-              <FiShoppingBag size={14} /> View Bag · {money(total)} <FiArrowRight size={14} />
-            </button>
-          )}
-          <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-lg px-1 pb-[max(4px,env(safe-area-inset-bottom,0px))] pt-1.5 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] md:hidden">
-            <div className="grid grid-cols-4">
-              <Link href="/" className={`flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold ${pathname === "/" ? "text-primary" : "text-slate-500"}`}>
-                <FiHome className="text-base" /> Home
-              </Link>
-              <button
-                onClick={() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })}
-                className="flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold text-slate-500"
-              >
-                <FiGrid className="text-base" /> Shop
-              </button>
-              <button onClick={() => setOpen(true)} className="relative flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold text-slate-500">
-                <span className="relative">
-                  <FiShoppingBag className="text-base" />
-                  {totalCount > 0 && (
-                    <span className="absolute -right-2 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary text-[9px] font-bold text-white">
-                      {totalCount}
-                    </span>
-                  )}
-                </span>
-                Bag
-              </button>
-              <Link href="/account" className="flex flex-col items-center gap-0.5 rounded-xl py-1 text-[10px] font-semibold text-slate-500">
-                <FiUser className="text-base" /> Profile
-              </Link>
-            </div>
-          </nav>
-        </>
-      ) : (
-      /* Mobile Sticky Cart Bar */
-      totalCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-2.5 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-lg md:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="relative text-primary">
-              <FiShoppingBag size={24} />
-              <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-primary text-xs font-bold text-white">
-                {totalCount}
-              </span>
-            </div>
-            <div>
-              <span className="block text-xs uppercase tracking-wider text-slate-400">
-                Cart Subtotal
-              </span>
-              <span className="text-sm font-bold text-primary">{money(total)}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/30 active:scale-[0.98]"
-          >
-            View Bag <FiArrowRight size={16} />
-          </button>
-        </div>
-      )
-      )}
 
       {/* Floating Customer Chat Widget */}
       {chatConfig?.enabled !== false && (chatConfig?.whatsapp?.number || chatConfig?.messenger?.url || chatConfig?.phone) && (

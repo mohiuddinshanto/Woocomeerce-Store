@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { Toaster } from "react-hot-toast";
+import { StoreBottomNav } from "../components/store-bottom-nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body style={style}>
         <Toaster position="top-center" toastOptions={{ duration: 3000, style: { borderRadius: '12px', background: '#0f172a', color: '#fff' } }} />
         {children}
+        <StoreBottomNav />
       </body>
     </html>
   );
