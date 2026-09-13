@@ -157,8 +157,12 @@ export default function CheckoutPage() {
 
       localStorage.removeItem("epic-cart");
       setCart([]);
+      sessionStorage.setItem(
+        "epic-last-order",
+        JSON.stringify({ id: data.id, total: totalAmount, paymentMethod: selectedMethod, placedAt: new Date().toISOString() }),
+      );
       toast.success("অর্ডারটি সফলভাবে সম্পন্ন হয়েছে!");
-      window.location.href = "/account";
+      window.location.href = "/order-success";
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "অর্ডার করা যায়নি");
     } finally {
