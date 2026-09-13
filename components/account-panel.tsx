@@ -47,7 +47,7 @@ function initials(name: string) {
 }
 
 const ORDER_LABEL: Record<string, string> = {
-  SENT: "In Courier",
+  IN_COURIER: "In Courier",
 };
 
 function StatusChip({ status }: { status: string }) {

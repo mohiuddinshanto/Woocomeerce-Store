@@ -259,21 +259,21 @@ const api = (path: string, token: string, init?: RequestInit) =>
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-amber/10 text-amber",
   CONFIRMED: "bg-primary/10 text-primary",
-  PACKED: "bg-cyan/10 text-cyan",
-  SENT: "bg-indigo-500/10 text-indigo-500",
+  IN_COURIER: "bg-indigo-500/10 text-indigo-500",
   SHIPPED: "bg-blue-500/10 text-blue-500",
   DELIVERED: "bg-emerald/10 text-emerald",
   CANCELLED: "bg-rose-100 dark:bg-rose-500/10 text-rose-500",
-  RETURNED: "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400",
 };
 
 const statusPill = (status: string) => STATUS_COLORS[status] ?? "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-slate-400";
 
 const STATUS_LABEL: Record<string, string> = {
-  SENT: "In Courier",
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  IN_COURIER: "In Courier",
   SHIPPED: "Shipped",
   DELIVERED: "Delivered",
-  RETURNED: "Returned",
+  CANCELLED: "Cancelled",
 };
 
 type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
@@ -630,8 +630,8 @@ function AdminOverview({ token }: { token: string }) {
                           onChange={(e) => updateOrderStatus(order.id, e.target.value, order.paymentStatus)}
                           className="w-32"
                         >
-                          {["PENDING", "CONFIRMED", "PACKED", "SENT", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
-                            <SelectItem key={s}>{s}</SelectItem>
+                          {["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"].map((s) => (
+                            <SelectItem key={s}>{STATUS_LABEL[s] ?? s}</SelectItem>
                           ))}
                         </Select>
                         <Button
@@ -2467,7 +2467,13 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
 /* ==================== ORDERS (KANBAN) ==================== */
 function AdminOrders({ token, config }: { token: string; config: Config }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [view, setView] = useState<"kanban" | "table">(() => {
+    try {
+      return localStorage.getItem("epic-orders-view") === "table" ? "table" : "kanban";
+    } catch {
+      return "kanban";
+    }
+  });
   const [openCourier, setOpenCourier] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [syncingAll, setSyncingAll] = useState(false);
@@ -2522,19 +2528,18 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
       return;
     }
     const tracking = o.courierTrackingId || `${courierPrefix[c.key] ?? "PC"}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
-    const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "SENT", courierName: c.label, courierTrackingId: tracking }) });
+    const res = await api(`/api/admin/orders/${o.id}`, token, { method: "PATCH", body: JSON.stringify({ status: "IN_COURIER", courierName: c.label, courierTrackingId: tracking }) });
     if (res.ok) {
       toast.success(`#${o.id.slice(0, 6)} → ${c.label}`);
       load();
     } else toast.error("Sent করা যায়নি");
   }
 
-  const columns = ["PENDING", "CONFIRMED", "PACKED", "SENT", "SHIPPED", "DELIVERED", "CANCELLED"];
+  const columns = ["PENDING", "CONFIRMED", "IN_COURIER", "SHIPPED", "DELIVERED", "CANCELLED"];
   const columnColor: Record<string, string> = {
     PENDING: "text-amber border-amber/30 bg-amber/5",
     CONFIRMED: "text-primary border-primary/30 bg-primary/5",
-    PACKED: "text-cyan border-cyan/30 bg-cyan/5",
-    SENT: "text-indigo-500 border-indigo-500/30 bg-indigo-500/5",
+    IN_COURIER: "text-indigo-500 border-indigo-500/30 bg-indigo-500/5",
     SHIPPED: "text-blue-500 border-blue-500/30 bg-blue-500/5",
     DELIVERED: "text-emerald border-emerald/30 bg-emerald/5",
     CANCELLED: "text-rose-500 border-rose-500/30 bg-rose-500/5",
@@ -2542,8 +2547,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const dotColor: Record<string, string> = {
     PENDING: "bg-amber",
     CONFIRMED: "bg-primary",
-    PACKED: "bg-cyan",
-    SENT: "bg-indigo-500",
+    IN_COURIER: "bg-indigo-500",
     SHIPPED: "bg-blue-500",
     DELIVERED: "bg-emerald",
     CANCELLED: "bg-rose-500",
@@ -2578,10 +2582,10 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
   const stats = {
     total: orders.length,
     today: orders.filter((o) => new Date(safeDate(o.createdAt)).getTime() >= today).length,
-    cancelled: orders.filter((o) => o.status === "CANCELLED" || o.status === "RETURNED").length,
+    cancelled: orders.filter((o) => o.status === "CANCELLED").length,
     delivered: orders.filter((o) => o.status === "DELIVERED").length,
     pending: orders.filter((o) => o.status === "PENDING").length,
-    shipped: orders.filter((o) => o.status === "SHIPPED" || o.status === "SENT").length,
+    shipped: orders.filter((o) => o.status === "SHIPPED" || o.status === "IN_COURIER").length,
   };
   const sfAgg: Record<string, number> = {};
   orders.forEach((o) => {
@@ -2673,7 +2677,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
           {(["kanban", "table"] as const).map((v) => (
             <button
               key={v}
-              onClick={() => setView(v)}
+              onClick={() => { setView(v); try { localStorage.setItem("epic-orders-view", v); } catch {} }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
                 view === v ? "bg-white dark:bg-[#1a1a2e] text-gray-900 dark:text-white shadow-sm" : "text-gray-400 dark:text-slate-500"
               }`}
@@ -2720,7 +2724,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
           { label: "Total", value: stats.total, cls: "text-gray-900 dark:text-white" },
           { label: "Today", value: stats.today, cls: "text-primary" },
           { label: "Pending", value: stats.pending, cls: "text-amber" },
-          { label: "Shipped/Sent", value: stats.shipped, cls: "text-indigo-500" },
+          { label: "Courier", value: stats.shipped, cls: "text-indigo-500" },
           { label: "Delivered", value: stats.delivered, cls: "text-emerald" },
           { label: "Cancelled", value: stats.cancelled, cls: "text-rose-500" },
           { label: "SF: In Review", value: sfAgg.in_review ?? 0, cls: "text-amber" },
@@ -2768,7 +2772,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-white/3 border-b border-gray-100 dark:border-white/8">
                 <tr>
-                  {[["Courier", "Courier"], ["Parcels", "Parcels"], ["Total Amount", "Total Amount"], ["SENT", STATUS_LABEL.SENT], ["SHIPPED", STATUS_LABEL.SHIPPED], ["DELIVERED", STATUS_LABEL.DELIVERED], ["RETURNED", STATUS_LABEL.RETURNED], ["", ""]].map(([h, label]) => (
+                  {[["Courier", "Courier"], ["Parcels", "Parcels"], ["Total Amount", "Total Amount"], ["IN_COURIER", STATUS_LABEL.IN_COURIER], ["SHIPPED", STATUS_LABEL.SHIPPED], ["DELIVERED", STATUS_LABEL.DELIVERED], ["", ""]].map(([h, label]) => (
                     <th key={h} className="py-2.5 px-4 text-left text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
                       {label}
                     </th>
@@ -2788,10 +2792,9 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       </td>
                       <td className="py-3 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{c.parcels.length}</td>
                       <td className="py-3 px-4 font-bold text-xs text-gray-800 dark:text-slate-200">{money(c.parcels.reduce((s, o) => s + Number(o.totalAmount), 0))}</td>
-                      <td className="py-3 px-4 text-xs text-gray-500">{count("SENT")}</td>
+                      <td className="py-3 px-4 text-xs text-gray-500">{count("IN_COURIER")}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{count("SHIPPED")}</td>
                       <td className="py-3 px-4 text-xs text-gray-500">{count("DELIVERED")}</td>
-                      <td className="py-3 px-4 text-xs text-gray-500">{count("RETURNED")}</td>
                       <td className="py-3 px-4 text-right">
                         <Button size="sm" variant="flat" onPress={() => setOpenCourier(openCourier === c.key ? null : c.key)}>
                           {openCourier === c.key ? "Hide" : "Details"}
@@ -2910,7 +2913,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       <div className="mt-3 min-w-0">
                         <Select size="sm" aria-label="Move status" selectedKeys={[o.status]} onChange={(e) => updateStatus(o.id, e.target.value, o.paymentStatus)} className="w-full">
                           {columns.map((s) => (
-                            <SelectItem key={s}>{s}</SelectItem>
+                            <SelectItem key={s}>{STATUS_LABEL[s] ?? s}</SelectItem>
                           ))}
                         </Select>
                       </div>
@@ -2967,7 +2970,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusPill(o.status)}`}>{o.status}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusPill(o.status)}`}>{STATUS_LABEL[o.status] ?? o.status}</span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-col gap-0.5">
@@ -3051,7 +3054,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
 
             <div className="px-5 py-4 space-y-4">
               <div className="flex flex-wrap gap-2">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${statusPill(detail.status)}`}>{detail.status}</span>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${statusPill(detail.status)}`}>{STATUS_LABEL[detail.status] ?? detail.status}</span>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${detail.paymentStatus === "PAID" ? "bg-emerald/10 text-emerald" : "bg-amber/10 text-amber"}`}>
                   Payment: {detail.paymentStatus}
                 </span>
@@ -3106,7 +3109,7 @@ function AdminOrders({ token, config }: { token: string; config: Config }) {
                 <div>
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-slate-500 mb-2">Change Status</p>
                   <Select size="sm" aria-label="Order status" selectedKeys={[detail.status]} onChange={(e) => { updateStatus(detail.id, e.target.value, detail.paymentStatus); setDetail(null); }} className="w-full">
-                    {columns.map((s) => (<SelectItem key={s}>{s}</SelectItem>))}
+                    {columns.map((s) => (<SelectItem key={s}>{STATUS_LABEL[s] ?? s}</SelectItem>))}
                   </Select>
                 </div>
                 <div className="flex gap-2">
