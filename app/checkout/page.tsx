@@ -35,6 +35,15 @@ type Method = { id: string; label: string };
 type CheckoutField = { enabled: boolean; required: boolean; label: string; placeholder: string };
 type CheckoutForm = Record<string, CheckoutField>;
 
+const DEFAULT_CHECKOUT_FORM: CheckoutForm = {
+  name: { enabled: true, required: true, label: "Full name", placeholder: "Rahim Ahmed" },
+  phone: { enabled: true, required: true, label: "Mobile number", placeholder: "01712345678" },
+  email: { enabled: true, required: false, label: "Email address (optional)", placeholder: "you@example.com" },
+  address: { enabled: true, required: true, label: "Delivery address", placeholder: "House 12, Road 5, Block B" },
+  district: { enabled: true, required: true, label: "District", placeholder: "Dhaka" },
+  division: { enabled: true, required: true, label: "Division", placeholder: "Dhaka" },
+};
+
 const FIELD_META: Record<string, { icon?: ReactNode; full?: boolean }> = {
   name: { icon: <FiUser className="text-gray-400" /> },
   phone: { icon: <FiPhone className="text-gray-400" /> },
@@ -55,7 +64,7 @@ export default function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [couponId, setCouponId] = useState<string | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [form, setForm] = useState<CheckoutForm>({});
+  const [form, setForm] = useState<CheckoutForm>(DEFAULT_CHECKOUT_FORM);
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shipping = subtotal ? 80 : 0;
@@ -77,7 +86,14 @@ export default function CheckoutPage() {
         } else {
           setMethods([{ id: "COD", label: "Cash on delivery" }]);
         }
-        setForm(data.form ?? {});
+        const savedForm = data.form ?? {};
+        const mergedForm = Object.fromEntries(
+          Object.keys(DEFAULT_CHECKOUT_FORM).map((key) => [
+            key,
+            { ...DEFAULT_CHECKOUT_FORM[key], ...(savedForm[key] ?? {}) },
+          ]),
+        );
+        if (Object.keys(mergedForm).length) setForm(mergedForm);
       })
       .catch(() => {
         setMethods([{ id: "COD", label: "Cash on delivery" }]);
