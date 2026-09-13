@@ -726,12 +726,9 @@ export function Storefront() {
         </Link>
 
         <div className="nav-links">
-          <button
-            className={pathname === "/" ? "active" : ""}
-            onClick={() => document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" })}
-          >
-            All Products
-          </button>
+          <Link href="/shop" className={`shop-nav-link ${pathname === "/shop" ? "active" : ""}`}>
+            <FiShoppingBag size={14} /> Shop
+          </Link>
           {navMenus.length > 0
             ? navMenus.map((item) => <NavItem key={item.id} item={item} categories={categories} pathname={pathname} />)
             : categories.slice(0, 4).map((c) => (
@@ -781,6 +778,14 @@ export function Storefront() {
                 placeholder="Search store…"
               />
             </label>
+
+            <Link
+              href="/shop"
+              className={`mobile-link ${pathname === "/shop" ? "active" : ""}`}
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <FiShoppingBag size={15} /> Shop
+            </Link>
 
             {navMenus.length > 0
               ? navMenus.map((item) => (
