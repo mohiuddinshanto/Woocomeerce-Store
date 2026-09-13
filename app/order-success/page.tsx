@@ -2,17 +2,39 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FiCheckCircle, FiChevronRight, FiClock, FiCreditCard, FiPackage, FiUser } from "react-icons/fi";
+import { FiCheckCircle, FiChevronRight, FiClock, FiCreditCard, FiMail, FiMapPin, FiPackage, FiPhone, FiUser } from "react-icons/fi";
 import { SiteHeader } from "../../components/site-header";
+
+type OrderItem = {
+  name?: string;
+  qty?: number;
+  price?: number;
+  productId?: string;
+  variationId?: string;
+};
+
+type DeliveryDetails = {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  district?: string;
+  division?: string;
+};
 
 type LastOrder = {
   id?: string;
-  total?: number;
+  createdAt?: string;
   paymentMethod?: string;
-  placedAt?: string;
+  subtotal?: number;
+  shippingCharge?: number;
+  discountAmount?: number | null;
+  totalAmount?: number;
+  shippingDetails?: DeliveryDetails | null;
+  orderItems?: OrderItem[] | null;
 };
 
-const money = (value: number) => "৳ " + value.toLocaleString("en-BD");
+const money = (value?: number) => "৳ " + (Number(value) || 0).toLocaleString("en-BD");
 
 export default function OrderSuccessPage() {
   const [order, setOrder] = useState<LastOrder | null>(null);
@@ -26,6 +48,10 @@ export default function OrderSuccessPage() {
     }
   }, []);
 
+  const items = order?.orderItems ?? [];
+  const details = order?.shippingDetails ?? {};
+  const customerName = details.name?.trim() || "there";
+
   return (
     <main className="order-success-page">
       <SiteHeader />
@@ -36,11 +62,11 @@ export default function OrderSuccessPage() {
             <FiCheckCircle size={38} />
           </div>
           <span className="eyebrow">THANK YOU</span>
-          <h1>Order placed successfully!</h1>
+          <h1>ধন্যবাদ, {customerName}!</h1>
           <p className="order-success-sub">
-            {order?.id
-              ? <>Your order <strong className="order-id">#{order.id.slice(0, 8).toUpperCase()}</strong> has been received. A confirmation email is on its way if you provided one.</>
-              : <>Your order has been received. A confirmation email is on its way.</>}
+            আপনার অর্ডার{' '}
+            <strong className="order-id">#{order?.id?.slice(0, 8).toUpperCase() ?? ""}</strong>{' '}
+            সফলভাবে রিসিভ করা হয়েছে। আমাদের টিম শিগগিরই ডেলিভারির জন্য আপনার সাথে যোগাযোগ করবে।
           </p>
 
           {order && (
@@ -48,7 +74,7 @@ export default function OrderSuccessPage() {
               <div className="meta-item">
                 <FiClock />
                 <span>Placed</span>
-                <strong>{order.placedAt ? new Date(order.placedAt).toLocaleString("en-GB") : "Just now"}</strong>
+                <strong>{order.createdAt ? new Date(order.createdAt).toLocaleString("en-GB") : "Just now"}</strong>
               </div>
               <div className="meta-item">
                 <FiCreditCard />
@@ -58,14 +84,62 @@ export default function OrderSuccessPage() {
               <div className="meta-item">
                 <FiPackage />
                 <span>Total</span>
-                <strong>{money(order.total ?? 0)}</strong>
+                <strong>{money(order.totalAmount)}</strong>
               </div>
             </div>
           )}
 
+          <div className="os-box">
+            <h4>Order Items</h4>
+            {items.length ? (
+              <div className="os-items">
+                {items.map((item, index) => (
+                  <div key={item.productId ?? `${item.name}-${index}`} className="os-item">
+                    <span className="os-item-name">
+                      {item.name} {item.qty ? <em>× {item.qty}</em> : null}
+                    </span>
+                    <strong>{money(Number(item.price) * Number(item.qty))}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="os-empty">Items not available.</p>
+            )}
+            <div className="os-totals">
+              <div>
+                <span>Subtotal</span>
+                <strong>{money(order?.subtotal)}</strong>
+              </div>
+              {Number(order?.discountAmount) > 0 && (
+                <div style={{ color: "#059669" }}>
+                  <span>Discount</span>
+                  <strong>- {money(order?.discountAmount ?? 0)}</strong>
+                </div>
+              )}
+              <div>
+                <span>Shipping</span>
+                <strong>{money(order?.shippingCharge)}</strong>
+              </div>
+              <div className="os-total">
+                <span>Total</span>
+                <strong>{money(order?.totalAmount)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="os-box">
+            <h4>Delivery Details</h4>
+            <div className="os-contact">
+              <span><FiUser /> {customerName}</span>
+              <span><FiPhone /> {details.phone ?? "—"}</span>
+              {details.email ? <span><FiMail /> {details.email}</span> : null}
+              <span><FiMapPin /> {[details.address, details.district, details.division].filter(Boolean).join(", ") || "—"}</span>
+            </div>
+          </div>
+
           <div className="order-success-note">
             <FiUser />
-            <span>Track your order anytime from your profile. Our team will confirm your delivery soon.</span>
+            <span>আপনার অর্ডার যেকোনো সময় প্রোফাইল থেকে ট্র্যাক করতে পারবেন।</span>
           </div>
 
           <div className="order-success-actions">
