@@ -2,7 +2,7 @@
 
 import { Button, Input } from "@heroui/react";
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import toast from "react-hot-toast";
 import {
   FiArrowLeft,
@@ -32,6 +32,18 @@ type CartItem = {
 
 type Method = { id: string; label: string };
 
+type CheckoutField = { enabled: boolean; required: boolean; label: string; placeholder: string };
+type CheckoutForm = Record<string, CheckoutField>;
+
+const FIELD_META: Record<string, { icon?: ReactNode; full?: boolean }> = {
+  name: { icon: <FiUser className="text-gray-400" /> },
+  phone: { icon: <FiPhone className="text-gray-400" /> },
+  email: { icon: <FiMail className="text-gray-400" /> },
+  address: { icon: <FiMapPin className="text-gray-400" />, full: true },
+  district: {},
+  division: {},
+};
+
 const money = (value: number) => "৳ " + value.toLocaleString("en-BD");
 
 export default function CheckoutPage() {
@@ -43,7 +55,7 @@ export default function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [couponId, setCouponId] = useState<string | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
-  const [requiresEmail, setRequiresEmail] = useState(false);
+  const [form, setForm] = useState<CheckoutForm>({});
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const shipping = subtotal ? 80 : 0;
@@ -65,7 +77,7 @@ export default function CheckoutPage() {
         } else {
           setMethods([{ id: "COD", label: "Cash on delivery" }]);
         }
-        setRequiresEmail(Boolean(data.requiresEmail));
+        setForm(data.form ?? {});
       })
       .catch(() => {
         setMethods([{ id: "COD", label: "Cash on delivery" }]);
@@ -123,14 +135,11 @@ export default function CheckoutPage() {
           discountAmount: discountAmount || undefined,
           couponId: couponId || undefined,
           totalAmount,
-          shippingDetails: {
-            name: form.get("name"),
-            phone: form.get("phone"),
-            email: requiresEmail ? form.get("email") : null,
-            address: form.get("address"),
-            district: form.get("district"),
-            division: form.get("division"),
-          },
+          shippingDetails: Object.fromEntries(
+            Object.entries(form)
+              .filter(([, field]) => field.enabled)
+              .map(([key]) => [key, form.get(key)]),
+          ),
           orderItems: cart.map((item) => ({
             productId: item.id,
             name: item.name,
@@ -178,39 +187,20 @@ export default function CheckoutPage() {
 
           <form onSubmit={submit} style={{ display: "grid", gap: "24px" }}>
             <div className="form-grid">
-              <Input
-                name="name"
-                label="Full name"
-                placeholder="Rahim Ahmed"
-                isRequired
-                startContent={<FiUser className="text-gray-400" />}
-              />
-              <Input
-                name="phone"
-                label="Mobile number"
-                placeholder="01712345678"
-                isRequired
-                startContent={<FiPhone className="text-gray-400" />}
-              />
-              {requiresEmail && (
-                <Input
-                  type="email"
-                  name="email"
-                  label="Email address (optional)"
-                  placeholder="you@example.com"
-                  startContent={<FiMail className="text-gray-400" />}
-                />
-              )}
-              <Input
-                className="full"
-                name="address"
-                label="Delivery Address"
-                placeholder="House 12, Road 5, Block B, Mirpur"
-                isRequired
-                startContent={<FiMapPin className="text-gray-400" />}
-              />
-              <Input name="district" label="District" placeholder="Dhaka" isRequired />
-              <Input name="division" label="Division" placeholder="Dhaka" isRequired />
+              {Object.entries(form)
+                .filter(([, field]) => field.enabled)
+                .map(([key, field]) => (
+                  <Input
+                    key={key}
+                    className={FIELD_META[key]?.full ? "full" : undefined}
+                    {...(key === "email" ? { type: "email" } : {})}
+                    name={key}
+                    label={field.label}
+                    placeholder={field.placeholder}
+                    isRequired={Boolean(field.required)}
+                    startContent={FIELD_META[key]?.icon}
+                  />
+                ))}
             </div>
 
             {/* Payment Method Selector */}

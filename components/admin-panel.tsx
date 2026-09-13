@@ -81,6 +81,7 @@ type Config = {
     sslcommerz?: { enabled: boolean; mode?: string; callbackUrl?: string; sandbox?: boolean; storeId?: string; storePassword?: string };
   };
   emailConfig?: { host: string; port: number; user: string; pass: string; fromEmail: string };
+  checkoutForm?: Record<string, { enabled?: boolean; required?: boolean; label?: string; placeholder?: string }> | null;
   courierConfig?: {
     steadfast?: { enabled: boolean; apiKey?: string; secretKey?: string };
     pathao?: { enabled: boolean; clientId?: string; clientSecret?: string; clientEmail?: string };
@@ -275,7 +276,7 @@ const STATUS_LABEL: Record<string, string> = {
   RETURNED: "Returned",
 };
 
-type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "storage";
+type Section = "overview" | "products" | "categories" | "orders" | "coupons" | "reviews" | "staff" | "home" | "banner" | "menu" | "marketing" | "features" | "payments" | "delivery" | "checkout" | "storage";
 
 const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "◈" },
@@ -292,6 +293,7 @@ const NAV: { key: Section; label: string; icon: string }[] = [
   { key: "features", label: "Store Features", icon: "⊕" },
   { key: "payments", label: "Payments", icon: "¢" },
   { key: "delivery", label: "Delivery", icon: "◫" },
+  { key: "checkout", label: "Checkout Form", icon: "▤" },
   { key: "storage", label: "Storage", icon: "▣" },
 ];
 
@@ -518,6 +520,7 @@ export function AdminPanel() {
           {section === "features" && <FeatureSettings config={config} save={save} saving={saving} />}
 {section === "payments" && <PaymentSettings config={config} save={save} saving={saving} />}
         {section === "delivery" && <DeliverySettings config={config} save={save} saving={saving} token={token} />}
+          {section === "checkout" && <CheckoutFormSettings config={config} save={save} saving={saving} />}
           {section === "storage" && <StorageSettings save={save} saving={saving} configured={config.storageConfigured} storage={config.storageConfig} />}
         </div>
       </div>
@@ -4777,6 +4780,85 @@ function StorageSettings({ save, saving, configured, storage }: {
 
         <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
           {saving ? "Saving…" : "Save Storage Settings"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ==================== CHECKOUT FORM ==================== */
+type CheckoutFieldEditor = { enabled: boolean; required: boolean; label: string; placeholder: string };
+const DEFAULT_CHECKOUT_FORM: Record<string, CheckoutFieldEditor> = {
+  name: { enabled: true, required: true, label: "Full name", placeholder: "Rahim Ahmed" },
+  phone: { enabled: true, required: true, label: "Mobile number", placeholder: "01712345678" },
+  email: { enabled: false, required: false, label: "Email address (optional)", placeholder: "you@example.com" },
+  address: { enabled: true, required: true, label: "Delivery address", placeholder: "House 12, Road 5, Block B" },
+  district: { enabled: true, required: true, label: "District", placeholder: "Dhaka" },
+  division: { enabled: true, required: true, label: "Division", placeholder: "Dhaka" },
+};
+const CHECKOUT_KEYS = ["name", "phone", "email", "address", "district", "division"];
+const CHECKOUT_HINTS: Record<string, string> = {
+  email: "Shown only when enabled. Customers receive an order confirmation email (requires SMTP).",
+};
+
+function CheckoutFormSettings({ save, saving, config }: { save: (payload: object) => Promise<void>; saving: boolean; config: Config }) {
+  const [fields, setFields] = useState<Record<string, CheckoutFieldEditor>>(() => {
+    const saved = config.checkoutForm ?? {};
+    return Object.fromEntries(
+      CHECKOUT_KEYS.map((key) => [key, { ...DEFAULT_CHECKOUT_FORM[key], ...(saved[key] ?? {}) }]),
+    );
+  });
+  const setField = (key: string, patch: Partial<CheckoutFieldEditor>) => setFields((f) => ({ ...f, [key]: { ...f[key], ...patch } }));
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    save({
+      checkoutForm: Object.fromEntries(
+        CHECKOUT_KEYS.map((key) => [
+          key,
+          { enabled: fields[key].enabled, required: fields[key].required, label: fields[key].label, placeholder: fields[key].placeholder },
+        ]),
+      ),
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-6 max-w-3xl">
+      <div className="bg-white dark:bg-white/4 rounded-2xl border border-gray-100 dark:border-white/6 p-6">
+        <h3 className="font-display font-bold text-gray-900 dark:text-white mb-3">Checkout Form Fields</h3>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">
+          Turn fields on/off, set which are required, and change the label &amp; placeholder. Disabled fields are hidden on checkout.
+        </p>
+
+        {CHECKOUT_KEYS.map((key) => (
+          <div key={key} className="pb-6 border-b border-gray-100 dark:border-white/6 last:border-0" style={{ opacity: fields[key].enabled ? 1 : 0.55 }}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-slate-200">
+                  {key.charAt(0).toUpperCase() + key.slice(1)} field
+                </p>
+                {CHECKOUT_HINTS[key] && <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{CHECKOUT_HINTS[key]}</p>}
+              </div>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                  Required
+                  <Switch size="sm" isSelected={fields[key].required} onValueChange={(v) => setField(key, { required: v })} color="primary" />
+                </label>
+                <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                  Show
+                  <Switch size="sm" isSelected={fields[key].enabled} onValueChange={(v) => setField(key, { enabled: v })} color="primary" />
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Label" value={fields[key].label} onValueChange={(v) => setField(key, { label: v })} />
+              <Input label="Placeholder" value={fields[key].placeholder} onValueChange={(v) => setField(key, { placeholder: v })} />
+            </div>
+          </div>
+        ))}
+
+        <button type="submit" className="mt-6 px-5 h-10 bg-primary text-white text-sm font-bold font-display rounded-xl hover:bg-primary-dark transition-colors">
+          {saving ? "Saving…" : "Save Checkout Form"}
         </button>
       </div>
     </form>
