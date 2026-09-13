@@ -74,7 +74,7 @@ type HomePageConfigShape = {
 type Config = {
   storeName: string;
   themeSettings?: { primaryColor?: string; secondaryColor?: string; font?: string };
-  featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean; checkoutEmail: boolean };
+  featureFlags: { cod: boolean; reviews: boolean; wishlist: boolean; coupons: boolean; addToCart: boolean; checkoutEmail: boolean; bottomNav: boolean };
   paymentConfig?: {
     bkash?: { enabled: boolean; mode?: string; callbackUrl?: string; appKey?: string; appSecret?: string; username?: string; password?: string };
     nagad?: { enabled: boolean; mode?: string; callbackUrl?: string; merchantId?: string; merchantNumber?: string; privateKey?: string };
@@ -3560,6 +3560,7 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
           <ToggleRow label="Coupons & Discount Codes" description="Enable promo code discounts at checkout." selected={flags.coupons} onChange={(coupons) => save({ featureFlags: { ...flags, coupons } })} />
           <ToggleRow label="Add to Cart in product lists" description="ON: lists show the Add to Cart button (current). OFF: lists show only an Order Now button that goes straight to checkout. The single product page always keeps both." selected={flags.addToCart} onChange={(addToCart) => save({ featureFlags: { ...flags, addToCart } })} />
           <ToggleRow label="Email field at checkout" description="ON: customers see a (optional) email field at checkout and receive an order confirmation email when SMTP is configured." selected={flags.checkoutEmail} onChange={(checkoutEmail) => save({ featureFlags: { ...flags, checkoutEmail } })} />
+          <ToggleRow label="Bottom quick nav (mobile)" description="ON: mobile visitors see a fixed bottom bar on the home page with Home, Shop, Bag and Profile for one-tap navigation. OFF: hides it." selected={flags.bottomNav} onChange={(bottomNav) => save({ featureFlags: { ...flags, bottomNav } })} />
           <ToggleRow label="Order IP Rate Limit" description="Protect against repeated automated spam orders." selected={config.enableIpLimit} onChange={(enableIpLimit) => save({ enableIpLimit })} />
         </div>
       </div>
