@@ -163,7 +163,7 @@ type HomePageConfig = {
     title?: string;
     accent?: string;
     subtitle?: string;
-    items?: { init?: string; name?: string; role?: string; quote?: string; rating?: number }[];
+    items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
   };
   newsletter?: {
     enabled?: boolean;
@@ -270,7 +270,9 @@ const DEFAULT_FOOTER_LINKS = [
   { label: "Contact", url: "/account" },
 ];
 
-const DEFAULT_TESTIMONIALS = [
+type Testimonial = { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number };
+
+const DEFAULT_TESTIMONIALS: Testimonial[] = [
   {
     init: "TM",
     name: "Tasnim Mahbub",
@@ -1185,9 +1187,13 @@ export function Storefront() {
                       “{r.quote}”
                     </p>
                     <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
-                      <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-xs font-bold text-white">
-                        {r.init}
-                      </div>
+                      {r.image ? (
+                        <img src={r.image} alt={r.name ?? "customer"} className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-xs font-bold text-white">
+                          {r.init || r.name?.slice(0, 2).toUpperCase() || "A"}
+                        </div>
+                      )}
                       <div>
                         <h4 className="text-sm font-bold text-slate-900">{r.name}</h4>
                         <p className="text-xs text-slate-400">{r.role}</p>

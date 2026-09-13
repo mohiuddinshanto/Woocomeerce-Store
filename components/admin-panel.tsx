@@ -52,7 +52,7 @@ type HomePageConfigShape = {
     title?: string;
     accent?: string;
     subtitle?: string;
-    items?: { init?: string; name?: string; role?: string; quote?: string; rating?: number }[];
+    items?: { init?: string; image?: string; name?: string; role?: string; quote?: string; rating?: number }[];
   };
   newsletter?: {
     enabled?: boolean;
@@ -511,7 +511,7 @@ export function AdminPanel() {
           {section === "coupons" && <AdminCoupons token={token} />}
           {section === "reviews" && <AdminReviews token={token} />}
           {section === "staff" && <AdminStaff token={token} />}
-          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} />}
+          {section === "home" && <HomeLayoutSettings config={config} save={save} saving={saving} token={token} />}
           {section === "banner" && <BannerSettings config={config} save={save} saving={saving} token={token} />}
           {section === "menu" && <MenuBuilder config={config} save={save} saving={saving} />}
           {section === "marketing" && <MarketingChatSettings config={config} save={save} saving={saving} />}
@@ -3443,7 +3443,7 @@ function FeatureSettings({ config, save, saving }: { config: Config; save: (payl
 /* ==================== HOME LAYOUT ==================== */
 type SmallCategory = { id: string; name: string; _count?: { products?: number } };
 
-function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean }) {
+function HomeLayoutSettings({ config, save, saving, token }: { config: Config; save: (payload: object) => Promise<void>; saving: boolean; token: string }) {
   const [cats, setCats] = useState<SmallCategory[]>([]);
   const [layout, setLayout] = useState<"classic" | "catalog">(config.homePageConfig?.layout ?? "classic");
   const [sections, setSections] = useState<HomeSectionDef[]>(
@@ -3619,6 +3619,7 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
       .filter((t) => (t.name?.trim() || t.quote?.trim()))
       .map((t) => ({
         init: t.init?.trim() || undefined,
+        image: t.image?.trim() || undefined,
         name: t.name?.trim() || undefined,
         role: t.role?.trim() || undefined,
         quote: t.quote?.trim() || undefined,
@@ -3637,6 +3638,21 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
         },
       },
     });
+  }
+
+  async function uploadTestimonialImage(index: number, file: File) {
+    const form = new FormData();
+    form.append("image", file);
+    try {
+      const response = await fetch(apiUrl + "/api/admin/upload", { method: "POST", headers: { Authorization: "Bearer " + token }, body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === index ? { ...x, image: data.url } : x)) }));
+      setTestimonialsDirty(true);
+      toast.success("Photo uploaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Photo upload failed");
+    }
   }
 
   function saveNewsletter() {
@@ -3974,6 +3990,43 @@ function HomeLayoutSettings({ config, save, saving }: { config: Config; save: (p
               >
                 Remove
               </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative shrink-0">
+                {item.image ? (
+                  <>
+                    <img src={item.image} alt="" className="h-14 w-14 rounded-full object-cover border border-gray-200 dark:border-white/10" />
+                    <button
+                      type="button"
+                      onClick={() => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, image: undefined } : x)) })); setTestimonialsDirty(true); }}
+                      className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full bg-red-500 text-white text-[10px] shadow-md"
+                      aria-label="Remove photo"
+                    >
+                      <FiX size={11} />
+                    </button>
+                  </>
+                ) : (
+                  <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-primary to-cyan font-mono text-sm font-bold text-white">
+                    {item.init || item.name?.slice(0, 2).toUpperCase() || "?"}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Profile photo (optional)</p>
+                <label
+                  htmlFor={`testimonial-pic-${i}`}
+                  className="inline-flex cursor-pointer items-center gap-2 px-3 h-9 text-xs font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary/5 transition"
+                >
+                  <FiUpload size={13} /> {item.image ? "Change photo" : "Upload photo"}
+                </label>
+                <input
+                  id={`testimonial-pic-${i}`}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadTestimonialImage(i, f); }}
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <Input label="Name" placeholder="Tasnim Mahbub" value={item.name ?? ""} onValueChange={(v) => { setTestimonials((t) => ({ ...t, items: (t.items ?? []).map((x, xi) => (xi === i ? { ...x, name: v } : x)) })); setTestimonialsDirty(true); }} />
