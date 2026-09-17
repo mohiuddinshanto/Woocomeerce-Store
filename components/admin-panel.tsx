@@ -237,7 +237,7 @@ type Order = {
   courierTrackingId?: string;
 };
 
-type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; subCategories?: Category[] };
+type Category = { id: string; name: string; slug: string; image?: string | null; parentId?: string | null; subCategories?: Category[]; _count?: { products?: number } };
 type MenuItem = { id: string; label: string; type: "category" | "custom"; categoryId?: string; href?: string; children: MenuItem[] };
 type Coupon = { id: string; code: string; type: string; value: string; minSpend?: string; usedCount: number; isActive: boolean };
 type Review = { id: string; rating: number; comment?: string; isApproved: boolean; product: { name: string }; user: { name: string; email: string } };
@@ -2201,16 +2201,40 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
     } else toast.error("Could not remove image");
   }
 
-  async function deleteCategory(id: string) {
-    if (!confirm("Delete this category?")) return;
-    const res = await api(`/api/admin/categories/${id}`, token, { method: "DELETE" });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; productCount: number } | null>(null);
+  const [moveTo, setMoveTo] = useState<string>("");
+
+  async function doDelete(id: string, moveToCategoryId?: string) {
+    const res = await api(`/api/admin/categories/${id}`, token, {
+      method: "DELETE",
+      body: JSON.stringify({ moveToCategoryId: moveToCategoryId ?? "" }),
+    });
     if (res.ok) {
-      toast.success("Category deleted");
+      toast.success(moveToCategoryId ? "Category deleted · products moved" : "Category deleted");
       load();
     } else {
       const data = await res.json().catch(() => ({}));
       toast.error(data.error ?? "Delete failed");
     }
+  }
+
+  async function deleteCategory(id: string) {
+    const cat = categories.find((c) => c.id === id);
+    const productCount = cat?._count?.products ?? 0;
+    if (productCount > 0 && cat) {
+      setMoveTo("");
+      setDeleteTarget({ id, name: cat.name, productCount });
+      return;
+    }
+    if (!confirm("Delete this category?")) return;
+    await doDelete(id);
+  }
+
+  async function confirmMoveDelete() {
+    if (!deleteTarget) return;
+    if (!moveTo) return toast.error("Select a category to move the products into");
+    await doDelete(deleteTarget.id, moveTo);
+    setDeleteTarget(null);
   }
 
   const subCategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
@@ -2451,7 +2475,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                       <>
                         <p className="font-display font-bold text-sm text-gray-900 dark:text-white">{cat.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">
-                          /{cat.slug} · {subs.length} sub-categories
+                          /{cat.slug} · {subs.length} sub-categories · {cat._count?.products ?? 0} products
                         </p>
                       </>
                     )}
@@ -2477,7 +2501,7 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                       <div key={sub.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-white/4 rounded-xl">
                         <span className="text-xs text-primary font-bold">↳</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
-                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug}</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
                         <button
                           onClick={() => deleteCategory(sub.id)}
                           className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
@@ -2491,6 +2515,49 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
               </div>
             );
           })}
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setDeleteTarget(null)}>
+          <div
+            className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-white/8 p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="font-display font-bold text-gray-900 dark:text-white text-base">Delete & Move Products</h4>
+            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+              Category <strong className="text-gray-900 dark:text-white">“{deleteTarget.name}”</strong>-এ{" "}
+              <strong className="text-gray-900 dark:text-white">{deleteTarget.productCount}টি প্রোডাক্ট</strong> আছে। প্রোডাক্টগুলো কোন ক্যাটাগরিতে
+              সরিয়ে তারপর ক্যাটাগরিটা মুছবেন — সেটা বেছে নিন।
+            </p>
+            <div className="mt-4">
+              <Select
+                label="Move products to"
+                aria-label="Move products to"
+                selectedKeys={moveTo ? [moveTo] : []}
+                onChange={(e) => setMoveTo(e.target.value)}
+              >
+                {(categories.filter((c) => c.id !== deleteTarget.id) ?? []).map((c) => (
+                  <SelectItem key={c.id}>{c.name} ({c._count?.products ?? 0})</SelectItem>
+                ))}
+              </Select>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 h-9 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 text-sm font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMoveDelete}
+                disabled={!moveTo}
+                className="px-4 h-9 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 transition-colors disabled:opacity-50"
+              >
+                Move & Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
