@@ -308,7 +308,20 @@ export function AdminPanel() {
   const [token, setToken] = useState("");
   const [config, setConfig] = useState<Config | null>(null);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>(() => {
+    if (typeof window === "undefined") return "overview";
+    try {
+      const saved = localStorage.getItem("epic-admin-section");
+      return saved && NAV.some((n) => n.key === saved) ? (saved as Section) : "overview";
+    } catch {
+      return "overview";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("epic-admin-section", section);
+    } catch {}
+  }, [section]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
