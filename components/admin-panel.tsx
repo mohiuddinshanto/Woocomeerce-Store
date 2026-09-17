@@ -2481,12 +2481,23 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                     )}
                   </div>
                   {editingId !== cat.id && (
-                    <button
-                      onClick={() => setEditingId(cat.id)}
-                      className="px-3 h-8 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 text-xs font-semibold rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
-                    >
-                      <FiEdit2 /> Edit
-                    </button>
+                    <>
+                      <a
+                        href={`/categories/${cat.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="View category products"
+                        className="icon-square-btn w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
+                      >
+                        <FiEye />
+                      </a>
+                      <button
+                        onClick={() => setEditingId(cat.id)}
+                        className="px-3 h-8 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-slate-300 text-xs font-semibold rounded-lg hover:bg-primary/10 hover:text-primary transition-colors"
+                      >
+                        <FiEdit2 /> Edit
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => deleteCategory(cat.id)}
@@ -2502,6 +2513,15 @@ function AdminCategories({ token, config, save, saving }: { token: string; confi
                         <span className="text-xs text-primary font-bold">↳</span>
                         <p className="flex-1 text-sm font-medium text-gray-700 dark:text-slate-300">{sub.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500">/{sub.slug} · {sub._count?.products ?? 0}</p>
+                        <a
+                          href={`/categories/${sub.slug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="View sub-category products"
+                          className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center text-xs"
+                        >
+                          <FiEye />
+                        </a>
                         <button
                           onClick={() => deleteCategory(sub.id)}
                           className="icon-square-btn w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-slate-400 hover:bg-rose-100 dark:hover:bg-rose-500/10 hover:text-rose-500 transition-colors flex items-center justify-center text-xs"
