@@ -979,6 +979,7 @@ function AdminProducts({ token }: { token: string }) {
   const [selectedVars, setSelectedVars] = useState<Set<string>>(new Set());
   const [expandedVar, setExpandedVar] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [generating, setGenerating] = useState(false);
 
   const variationKey = (v: Variation) =>
@@ -1003,7 +1004,9 @@ function AdminProducts({ token }: { token: string }) {
   }, [token]);
 
   const filtered = products.filter(
-    (p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.category?.name.toLowerCase().includes(search.toLowerCase())
+    (p) =>
+      (!categoryFilter || p.categoryId === categoryFilter) &&
+      (p.name.toLowerCase().includes(search.toLowerCase()) || p.category?.name.toLowerCase().includes(search.toLowerCase()))
   );
 
   function startCreate() {
@@ -1447,16 +1450,31 @@ function AdminProducts({ token }: { token: string }) {
           ))}
         </div>
         {!creating && (
-          <div className="flex items-center gap-2 h-9 px-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl">
-            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, category..."
-              className="bg-transparent text-xs text-gray-700 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 outline-none w-44"
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 h-9 px-3 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl">
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, category..."
+                className="bg-transparent text-xs text-gray-700 dark:text-slate-200 placeholder-gray-400 dark:placeholder-slate-500 outline-none w-44"
+              />
+            </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="h-9 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-xs text-gray-700 dark:text-slate-200 outline-none focus:border-primary"
+              aria-label="Filter by category"
+            >
+              <option value="">All categories ({products.length})</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.parentId ? `↳ ${c.name}` : c.name} ({products.filter((p) => p.categoryId === c.id).length})
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>
